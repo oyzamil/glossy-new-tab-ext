@@ -1,14 +1,11 @@
-import { useEffect, useState } from 'react';
 import { Settings } from '@/app.config';
 import { useAntd } from '@/providers/ThemeProvider';
 import { Icon } from '@iconify/react';
 import {
   Button,
   Card,
-  Divider,
   Empty,
   Form,
-  List,
   Popconfirm,
   Segmented,
   Slider,
@@ -17,51 +14,14 @@ import {
   Upload,
 } from 'antd';
 import { debounce } from 'lodash';
+import CustomList from './CustomList';
 
 interface SidebarProps {
   onBackgroundChange: (url: string | null, type: 'image' | 'video') => void;
-  onSettingsChange: (settings: AppSettings) => void;
-  onWidgetSettingsChange: (settings: WidgetSettings) => void;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
 }
 
-interface WidgetSettings {
-  clock: boolean;
-  weather: boolean;
-  audioPlayer: boolean;
-}
-
-interface AppSettings {
-  glassMorphism: boolean;
-  blurAmount: number;
-  videoPlayback: boolean;
-  audioLoop: boolean;
-}
-
-interface DefaultWallpaper {
-  id: string;
-  name: string;
-  path: string;
-  type: 'image' | 'video';
-  category?: string;
-}
-
-const defaultWallpapers: DefaultWallpaper[] = [
-  {
-    id: 'default-1',
-    name: 'Black Glass',
-    path: '/wallpapers/black-glass.jpg',
-    type: 'image',
-    category: 'abstract',
-  },
-];
-
-export const Sidebar: React.FC<SidebarProps> = ({
-  onBackgroundChange,
-  onSettingsChange,
-  onWidgetSettingsChange,
-  videoRef,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }) => {
   const { message } = useAntd();
   const {
     saveWallpaper,
@@ -77,19 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [backgrounds, setBackgrounds] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [storageSize, setStorageSize] = useState<number>(0);
-  const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>({
-    clock: true,
-    weather: true,
-    audioPlayer: false,
-  });
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    glassMorphism: true,
-    blurAmount: 10,
-    videoPlayback: true,
-    audioLoop: true,
-  });
-
   const { settings, saveSettings } = useSettings();
+
   const [form] = Form.useForm<Settings>();
 
   const debouncedSubmit = useRef(debounce(onSubmit, 500)).current;
@@ -114,28 +63,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     loadBackgrounds();
-    loadCurrentBackground();
-    loadSettings();
+    // loadCurrentBackground();
     updateStorageSize();
   }, []);
-
-  const loadSettings = async () => {
-    // Load settings from localStorage or your settings store
-    const savedWidgets = localStorage.getItem('widgetSettings');
-    const savedApp = localStorage.getItem('appSettings');
-
-    if (savedWidgets) {
-      const widgets = JSON.parse(savedWidgets);
-      setWidgetSettings(widgets);
-      onWidgetSettingsChange(widgets);
-    }
-
-    if (savedApp) {
-      const app = JSON.parse(savedApp);
-      setAppSettings(app);
-      onSettingsChange(app);
-    }
-  };
 
   const loadBackgrounds = async () => {
     try {
@@ -289,20 +219,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleWidgetToggle = async (key: keyof WidgetSettings, value: boolean) => {
-    const newSettings = { ...widgetSettings, [key]: value };
-    setWidgetSettings(newSettings);
-    localStorage.setItem('widgetSettings', JSON.stringify(newSettings));
-    onWidgetSettingsChange(newSettings);
-  };
-
-  const handleAppSettingToggle = async (key: keyof AppSettings, value: boolean | number) => {
-    const newSettings = { ...appSettings, [key]: value };
-    setAppSettings(newSettings);
-    localStorage.setItem('appSettings', JSON.stringify(newSettings));
-    onSettingsChange(newSettings);
-  };
-
   const handleCaptureFrame = () => {
     if (videoRef?.current) {
       const video = videoRef.current;
@@ -353,12 +269,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return URL.createObjectURL(blob);
   };
 
-  const labelColumn = { flex: '80px' };
-
   return (
     <div className="space-y-4">
       <Form
-        className="mb-0"
+        className="mb-0 space-y-3"
         form={form}
         initialValues={settings}
         onValuesChange={(_, allValues) => {
@@ -366,8 +280,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }}
         layout="inline"
       >
-        <Form.Item className="-mt-1 w-full" label="Theme" name="theme" labelCol={labelColumn}>
+        <Form.Item label="Theme" name="theme">
           <Segmented
+            className="w-auto"
             onChange={(value) => {
               form.setFieldValue('theme', value);
             }}
@@ -376,72 +291,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
               { label: 'Dark', value: 'dark' },
               { label: 'System', value: 'system' },
             ]}
-            block
           />
         </Form.Item>
-      </Form>
+        {/* Widget Toggles */}
+        <Card className="w-full" title="Widgets" size="small">
+          <Form.Item label="Clock" name="clockWidget">
+            <Switch
+              checked={settings.clockWidget}
+              onChange={(checked) => form.setFieldValue('clockWidget', checked)}
+            />
+          </Form.Item>
 
-      {/* Widget Toggles */}
-      <Card className="glass-card" title="Widgets" size="small">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Clock</span>
+          <Form.Item label="Weather" name="weatherWidget">
             <Switch
-              checked={widgetSettings.clock}
-              onChange={(checked) => handleWidgetToggle('clock', checked)}
+              checked={settings.weatherWidget}
+              onChange={(checked) => form.setFieldValue('weatherWidget', checked)}
             />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Weather</span>
-            <Switch
-              checked={widgetSettings.weather}
-              onChange={(checked) => handleWidgetToggle('weather', checked)}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Audio Player</span>
-            <Switch
-              checked={widgetSettings.audioPlayer}
-              onChange={(checked) => handleWidgetToggle('audioPlayer', checked)}
-            />
-          </div>
-        </div>
-      </Card>
+          </Form.Item>
 
-      {/* Appearance Settings */}
-      <Card className="glass-card" title="Appearance" size="small">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Glass Morphism</span>
+          <Form.Item label="Player" name="audioPlayerWidget">
             <Switch
-              checked={appSettings.glassMorphism}
-              onChange={(checked) => handleAppSettingToggle('glassMorphism', checked)}
+              checked={settings.audioPlayerWidget}
+              onChange={(checked) => {
+                form.setFieldValue('audioPlayerWidget', checked);
+                form.setFieldValue('audioPlaying', checked);
+              }}
             />
-          </div>
-          {appSettings.glassMorphism && (
-            <div className="space-y-2">
-              <span className="text-sm">Blur Amount</span>
-              <Slider
-                min={0}
-                max={100}
-                value={appSettings.blurAmount}
-                onChange={(value) => handleAppSettingToggle('blurAmount', value)}
-              />
-            </div>
-          )}
-        </div>
-      </Card>
+          </Form.Item>
+        </Card>
 
-      {/* Video Controls */}
-      {isVideoBackground && (
-        <Card className="glass-card" title="Video Controls" size="small">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Video Playback</span>
+        <Card className="w-full" title="Appearance" size="small">
+          <Form.Item label="Glass Effect" name="glassMorphism">
+            <Switch
+              checked={settings.glassMorphism}
+              onChange={(checked) => form.setFieldValue('glassMorphism', checked)}
+            />
+          </Form.Item>
+          <Form.Item label="Blur Amount" name="blurAmount">
+            <Slider
+              min={0}
+              max={100}
+              value={settings.blurAmount}
+              onChange={(value) => form.setFieldValue('blurAmount', value)}
+            />
+          </Form.Item>
+        </Card>
+        {isVideoBackground && (
+          <Card className="w-full" title="Wallpaper Controls" size="small">
+            <Form.Item label="Video Playback" name="videoPlayback">
               <Switch
-                checked={appSettings.videoPlayback}
+                checked={settings.videoPlayback}
                 onChange={(checked) => {
-                  handleAppSettingToggle('videoPlayback', checked);
+                  form.setFieldValue('videoPlayback', checked);
                   if (videoRef?.current) {
                     if (checked) {
                       videoRef.current.play();
@@ -450,25 +351,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }
                   }
                 }}
+                checkedChildren={'Dynamic'}
+                unCheckedChildren={'Static'}
               />
-            </div>
-          </div>
-        </Card>
-      )}
+            </Form.Item>
+          </Card>
+        )}
+      </Form>
 
-      <Divider />
-
-      {/* Backgrounds Tabs */}
       <Tabs
+        styles={{
+          header: {
+            marginBottom: '5px',
+          },
+        }}
         defaultActiveKey="custom"
         items={[
           {
             key: 'custom',
-            label: 'My Backgrounds',
+            label: 'My Wallpapers',
             children: (
-              <div className="space-y-4">
-                {/* Upload Background */}
-                <Card className="glass-card" title="Upload Background" size="small">
+              <div className="space-y-3">
+                <Card className="glass-card" title="Upload Wallpaper" size="small">
                   <Upload.Dragger
                     beforeUpload={handleUpload}
                     showUploadList={false}
@@ -476,10 +380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     disabled={uploading}
                   >
                     <p className="ant-upload-drag-icon">
-                      <Icon
-                        className="text-4xl text-blue-400"
-                        icon="material-symbols:cloud-upload"
-                      />
+                      <Icon className="text-4xl" icon="material-symbols:cloud-upload" />
                     </p>
                     <p className="ant-upload-text">Click or drag file to upload</p>
                     <p className="ant-upload-hint text-white/60">
@@ -499,61 +400,74 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 {/* Background List */}
-                <List
+                <CustomList
+                  className="max-h-100 overflow-y-auto pr-1"
                   dataSource={backgrounds}
-                  locale={{ emptyText: <Empty description="No custom backgrounds" /> }}
-                  renderItem={(bg) => (
-                    <List.Item
-                      className={`${activeWallpaperId === bg.id ? 'bg-blue-500/20' : ''} rounded-lg px-2 transition-colors hover:bg-white/5`}
-                      actions={[
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={() => handleSetBackground(bg.id)}
-                          disabled={activeWallpaperId === bg.id}
-                          icon={<Icon icon="material-symbols:check-circle" />}
-                        >
-                          {activeWallpaperId === bg.id ? 'Active' : 'Apply'}
-                        </Button>,
-                        <Popconfirm
-                          title="Delete background"
-                          description="Are you sure?"
-                          onConfirm={() => handleRemoveBackground(bg.id)}
-                          okText="Yes"
-                          cancelText="No"
-                        >
-                          <Button
-                            type="link"
-                            size="small"
-                            danger
-                            icon={<Icon icon="material-symbols:delete" />}
-                          />
-                        </Popconfirm>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          bg.type === 'image' ? (
+                  empty={<Empty description="No custom backgrounds" />}
+                  renderItem={(bg) => {
+                    const isActive = activeWallpaperId === bg.id;
+
+                    return (
+                      <div
+                        className={`group flex items-center justify-between rounded-xl px-3 py-2 transition-all duration-200 ${isActive ? 'bg-gray-400/10' : 'hover:bg-white/5'} `}
+                      >
+                        {/* LEFT SIDE */}
+                        <div className="flex items-center gap-3">
+                          {/* Thumbnail */}
+                          {bg.type === 'image' ? (
                             <img
-                              className="h-12 w-12 rounded object-cover"
+                              className="h-12 w-12 rounded-lg object-cover"
                               src={getBackgroundURL(bg.data, bg.id)}
                               alt={bg.name}
                             />
                           ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded bg-gray-700">
+                            <div className="glass flex h-12 w-12 items-center justify-center rounded-lg">
                               <Icon className="text-2xl" icon="material-symbols:videocam" />
                             </div>
-                          )
-                        }
-                        title={<span className="text-sm">{bg.name}</span>}
-                        description={
-                          <span className="text-xs text-white/60">
-                            {bg.type === 'image' ? 'Image' : 'Video'} • {formatSize(bg.data.size)}
-                          </span>
-                        }
-                      />
-                    </List.Item>
-                  )}
+                          )}
+
+                          {/* Text */}
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{bg.name}</span>
+
+                            <span className="text-xs opacity-70">
+                              {bg.type === 'image' ? 'Image' : 'Video'} • {formatSize(bg.data.size)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* RIGHT SIDE ACTIONS */}
+                        <div className="flex items-center gap-2 opacity-80 transition-opacity group-hover:opacity-100">
+                          {/* Apply Button */}
+                          <Button
+                            type={isActive ? 'default' : 'link'}
+                            size="small"
+                            disabled={isActive}
+                            onClick={() => handleSetBackground(bg.id)}
+                            icon={<Icon icon="material-symbols:check-circle" />}
+                          >
+                            {isActive ? 'Active' : 'Apply'}
+                          </Button>
+
+                          {/* Delete */}
+                          <Popconfirm
+                            title="Delete background"
+                            description="Are you sure?"
+                            onConfirm={() => handleRemoveBackground(bg.id)}
+                            okText="Yes"
+                            cancelText="No"
+                          >
+                            <Button
+                              type="link"
+                              size="small"
+                              danger
+                              icon={<Icon icon="material-symbols:delete" />}
+                            />
+                          </Popconfirm>
+                        </div>
+                      </div>
+                    );
+                  }}
                 />
               </div>
             ),
@@ -562,47 +476,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
             key: 'default',
             label: 'Default Wallpapers',
             children: (
-              <List
+              <CustomList
                 dataSource={defaultWallpapers}
-                locale={{
-                  emptyText: (
-                    <Empty description="No default wallpapers available. Add wallpapers to public/wallpapers/" />
-                  ),
-                }}
+                empty={<Empty description="No default wallpapers available." />}
                 renderItem={(wallpaper) => {
                   const isActive = localStorage.getItem('defaultWallpaperId') === wallpaper.id;
+
                   return (
-                    <List.Item
-                      className={`${isActive ? 'bg-blue-500/20' : ''} cursor-pointer rounded-lg px-2 transition-colors hover:bg-white/5`}
+                    <div
+                      className={`flex cursor-pointer items-center justify-between rounded-lg px-2 py-2 transition-colors ${isActive ? 'bg-gray-400/10' : 'hover:bg-white/5'} `}
                       onClick={() => handleSetBackground(wallpaper.id, true)}
                     >
-                      <List.Item.Meta
-                        avatar={
-                          <div className="flex h-12 w-12 items-center justify-center rounded bg-linear-to-br from-blue-500 to-purple-600">
-                            <Icon
-                              className="text-2xl text-white"
-                              icon={
-                                wallpaper.type === 'image'
-                                  ? 'material-symbols:image'
-                                  : 'material-symbols:videocam'
-                              }
-                            />
-                          </div>
-                        }
-                        title={<span className="text-sm">{wallpaper.name}</span>}
-                        description={
-                          <span className="text-xs text-white/60">
+                      {/* Left Side */}
+                      <div className="flex items-center gap-3">
+                        <div className="glass flex h-12 w-12 items-center justify-center rounded">
+                          <Icon
+                            className="text-2xl"
+                            icon={
+                              wallpaper.type === 'image'
+                                ? 'material-symbols:image'
+                                : 'material-symbols:videocam'
+                            }
+                          />
+                        </div>
+
+                        <div className="flex flex-col">
+                          <span className="text-sm">{wallpaper.name}</span>
+                          <span className="text-xs">
                             {wallpaper.category || 'Default'} • {wallpaper.type}
                           </span>
-                        }
-                      />
+                        </div>
+                      </div>
+
+                      {/* Right Side */}
                       {isActive && (
                         <Icon
-                          className="text-xl text-blue-400"
+                          className="text-app-500 text-xl"
                           icon="material-symbols:check-circle"
                         />
                       )}
-                    </List.Item>
+                    </div>
                   );
                 }}
               />

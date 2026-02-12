@@ -4,6 +4,8 @@ export interface Shortcut {
   url: string;
   icon?: string;
   iconFile?: string;
+  color?: string;
+  textColor?: string;
 }
 
 export interface AudioFile {

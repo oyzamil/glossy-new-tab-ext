@@ -70,6 +70,21 @@
   .ant-app {
     @apply flex h-[inherit] flex-col;
   }
+  .ant-form-item-row,
+  .ant-form-item {
+    @apply w-full;
+  }
+  .ant-form-item .ant-row .ant-slider {
+    @apply min-w-30;
+  }
+
+  .ant-form-item-control {
+    @apply flex items-end justify-center;
+  }
+
+  .ant-upload-drag-container {
+    @apply flex flex-col items-center justify-center space-y-1;
+  }
   .glass {
     @apply bg-white/10 shadow-lg backdrop-blur-(--blur-amount) backdrop-brightness-150 dark:bg-black/70;
   }

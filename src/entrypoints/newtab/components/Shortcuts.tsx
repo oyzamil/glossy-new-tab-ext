@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { Form, Input, Modal, Popconfirm, Radio, Upload } from 'antd';
+import { Form, Input, Popconfirm, Radio, Upload } from 'antd';
 
 export const defaultShortcuts: Shortcut[] = [
   {
@@ -7,72 +7,90 @@ export const defaultShortcuts: Shortcut[] = [
     title: 'Google',
     url: 'https://www.google.com',
     icon: 'icon:logos:google-icon',
-  },
-  {
-    id: 'youtube',
-    title: 'YouTube',
-    url: 'https://www.youtube.com',
-    icon: 'icon:logos:youtube-icon',
+    color: '#fff',
   },
   {
     id: 'gmail',
     title: 'Gmail',
     url: 'https://mail.google.com',
     icon: 'icon:logos:google-gmail',
+    color: '#fff',
+  },
+  {
+    id: 'youtube',
+    title: 'YouTube',
+    url: 'https://www.youtube.com',
+    icon: 'icon:simple-icons:youtube',
+    color: '#ff0000',
+    textColor: '#fff',
   },
   {
     id: 'facebook',
     title: 'Facebook',
     url: 'https://www.facebook.com',
-    icon: 'icon:logos:facebook',
+    icon: 'icon:bxl:facebook',
+    color: '#1877f2',
+    textColor: '#fff',
   },
   {
     id: 'instagram',
     title: 'Instagram',
     url: 'https://www.instagram.com',
-    icon: 'icon:skill-icons:instagram',
+    icon: 'icon:simple-icons:instagram',
+    color: `linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4)`,
+    textColor: '#fff',
   },
   {
-    id: 'twitter',
+    id: 'x',
     title: 'X (Twitter)',
-    url: 'https://twitter.com',
-    icon: 'icon:logos:twitter',
+    url: 'https://x.com',
+    icon: 'icon:logos:x',
+    color: '#fff',
   },
   {
     id: 'linkedin',
     title: 'LinkedIn',
     url: 'https://www.linkedin.com',
-    icon: 'icon:logos:linkedin-icon',
+    icon: 'icon:bxl:linkedin',
+    color: '#0a66c2',
+    textColor: '#fff',
   },
   {
     id: 'whatsapp',
     title: 'WhatsApp',
     url: 'https://web.whatsapp.com',
     icon: 'icon:logos:whatsapp-icon',
+    color: '#45c654',
   },
   {
     id: 'github',
     title: 'GitHub',
     url: 'https://github.com',
     icon: 'icon:logos:github-icon',
+    color: '#fff',
   },
   {
     id: 'chatgpt',
     title: 'ChatGPT',
     url: 'https://chat.openai.com',
     icon: 'icon:simple-icons:openai',
+    color: '#fff',
+    textColor: '#000',
   },
   {
     id: 'netflix',
     title: 'Netflix',
     url: 'https://www.netflix.com',
-    icon: 'icon:logos:netflix-icon',
+    icon: 'icon:simple-icons:netflix',
+    color: '#000000',
+    textColor: 'red',
   },
   {
-    id: 'amazon',
-    title: 'Amazon',
-    url: 'https://www.amazon.com',
-    icon: 'icon:logos:amazon',
+    id: 'tiktok',
+    title: 'Tiktok',
+    url: 'https://www.tiktok.com',
+    icon: 'icon:logos:tiktok-icon',
+    color: '#000',
   },
 ];
 
@@ -211,6 +229,9 @@ export const Shortcuts: React.FC = () => {
             //   onClick={(e) => {
             //     if (editMode) e.preventDefault();
             //   }}
+            style={{
+              background: shortcut.color || 'transparent',
+            }}
           >
             {editMode && selectedShortcut === shortcut.id ? (
               <>
@@ -235,7 +256,13 @@ export const Shortcuts: React.FC = () => {
                 </div>
               </>
             ) : shortcut.icon && shortcut.icon.includes('icon:') ? (
-              <Icon className="text-3xl" icon={shortcut.icon.replace('icon:', '')} />
+              <Icon
+                className={cn('text-3xl')}
+                icon={shortcut.icon.replace('icon:', '')}
+                style={{
+                  ...(shortcut.textColor && { color: shortcut.textColor }),
+                }}
+              />
             ) : (
               <img
                 className="overflow-hidden rounded-xl object-cover"
@@ -266,13 +293,13 @@ export const Shortcuts: React.FC = () => {
         }}
         okText={editingShortcut ? 'Update' : 'Add'}
       >
-        <Form className="mt-4" form={form} layout="vertical">
+        <Form className="mt-4 space-y-2" form={form} layout="inline">
           <Form.Item
             name="title"
             label="Title"
             rules={[{ required: true, message: 'Please enter a title' }]}
           >
-            <Input placeholder="Enter shortcut title" />
+            <Input className="min-w-87.5" placeholder="Enter shortcut title" />
           </Form.Item>
           <Form.Item
             name="url"
@@ -282,7 +309,7 @@ export const Shortcuts: React.FC = () => {
               { type: 'url', message: 'Please enter a valid URL' },
             ]}
           >
-            <Input placeholder="https://example.com" />
+            <Input className="min-w-87.5" placeholder="https://example.com" />
           </Form.Item>
 
           <Form.Item label="Icon Source">
@@ -294,7 +321,7 @@ export const Shortcuts: React.FC = () => {
 
           {iconType === 'url' ? (
             <Form.Item name="icon" label="Icon URL">
-              <Input placeholder="https://example.com/icon.png" />
+              <Input className="min-w-87.5" placeholder="https://example.com/icon.png" />
             </Form.Item>
           ) : (
             <Form.Item label="Upload Icon">

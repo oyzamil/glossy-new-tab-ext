@@ -38,14 +38,12 @@ const defaultTracks: Track[] = [
 ];
 
 const AudioPlayer: React.FC<AudioPlayerProps> = () => {
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const { settings, saveSettings } = useSettings();
+  const { currentAudioIndex, audioPlaying, audioVolume, audioLoop, audioSpeed } = settings;
+
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.75);
   const [isMuted, setIsMuted] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
-  const [speed, setSpeed] = useState<number>(1);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showVolumeTooltip, setShowVolumeTooltip] = useState(false);
   const [showSpeedTooltip, setShowSpeedTooltip] = useState(false);
@@ -55,7 +53,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
 
-  const currentTrack = defaultTracks[currentTrackIndex];
+  const currentTrack = defaultTracks[currentAudioIndex];
 
   const isPlaylistEffectivelyVisible = showPlaylist && !showVolumeTooltip && !showSpeedTooltip;
 
@@ -67,12 +65,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
 
   const handlePlayPause = () => {
     if (audioRef.current) {
-      if (isPlaying) {
+      if (audioPlaying) {
         audioRef.current.pause();
       } else {
         audioRef.current.play();
       }
-      setIsPlaying(!isPlaying);
+      saveSettings({ audioPlaying: !audioPlaying });
     }
   };
 
@@ -106,7 +104,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   };
 
   const setVolumeLevel = (level: number) => {
-    setVolume(level);
+    saveSettings({ audioVolume: level });
     setIsMuted(level === 0);
     if (audioRef.current) {
       audioRef.current.volume = level;
@@ -115,7 +113,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   };
 
   const setPlaybackSpeed = (newSpeed: number) => {
-    setSpeed(newSpeed);
+    saveSettings({ audioSpeed: newSpeed });
     if (audioRef.current) {
       audioRef.current.playbackRate = newSpeed;
     }
@@ -123,20 +121,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
 
   const handleSkip = useCallback(
     (direction: 'next' | 'prev') => {
-      setCurrentTrackIndex((prev) => {
+      const getIndex = () => {
         if (direction === 'next') {
-          return (prev + 1) % defaultTracks.length;
+          return (currentAudioIndex + 1) % defaultTracks.length;
         } else {
-          return prev === 0 ? defaultTracks.length - 1 : prev - 1;
+          return currentAudioIndex === 0 ? defaultTracks.length - 1 : currentAudioIndex - 1;
         }
-      });
-      setIsPlaying(true);
+      };
+      saveSettings({ currentAudioIndex: getIndex() });
+      saveSettings({ audioPlaying: true });
     },
     [defaultTracks.length]
   );
 
   const onEnded = () => {
-    if (isLooping && audioRef.current) {
+    if (audioLoop && audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play();
     } else {
@@ -144,11 +143,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
     }
   };
 
-  const toggleLoop = () => setIsLooping(!isLooping);
+  const toggleLoop = () => saveSettings({ audioLoop: !audioLoop });
 
   const handleSelectTrack = (index: number) => {
-    setCurrentTrackIndex(index);
-    setIsPlaying(true);
+    saveSettings({ currentAudioIndex: index });
+    saveSettings({ audioPlaying: true });
   };
 
   const updatePlaylistPosition = () => {
@@ -166,10 +165,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   };
 
   useEffect(() => {
-    if (audioRef.current && isPlaying) {
+    if (audioRef.current && audioPlaying) {
       audioRef.current.play().catch((e) => console.error('Playback failed', e));
     }
-  }, [currentTrackIndex, isPlaying]);
+  }, [currentAudioIndex, audioPlaying]);
 
   const volumeLevels = [0, 0.25, 0.5, 0.75, 1];
   const speedLevels = [0.6, 0.8, 1, 1.2, 1.4];
@@ -202,10 +201,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       >
         <Playlist
           tracks={defaultTracks}
-          currentIndex={currentTrackIndex}
-          isPlaying={isPlaying}
+          currentIndex={currentAudioIndex}
+          isPlaying={audioPlaying}
           onSelect={handleSelectTrack}
-          currentTrack={currentTrack}
         />
       </div>
 
@@ -213,7 +211,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         <button className="shrink-0 transition-transform hover:scale-110" onClick={handlePlayPause}>
           <Icon
             className="text-2xl"
-            icon={isPlaying ? 'material-symbols:pause' : 'material-symbols:play-arrow'}
+            icon={audioPlaying ? 'material-symbols:pause' : 'material-symbols:play-arrow'}
           />
         </button>
 
@@ -246,7 +244,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
             onMouseLeave={() => setShowVolumeTooltip(false)}
           >
             <button onClick={toggleMute}>
-              {isMuted || volume === 0 ? (
+              {isMuted || audioVolume === 0 ? (
                 <Icon className="text-xl" icon="material-symbols:volume-mute" />
               ) : (
                 <Icon className="text-xl" icon="material-symbols:volume-up" />
@@ -264,7 +262,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                 {volumeLevels.map((v) => (
                   <button
                     className={`rounded-lg px-3 py-1 text-xs font-bold transition-all ${
-                      (isMuted && v === 0) || (!isMuted && volume === v)
+                      (isMuted && v === 0) || (!isMuted && audioVolume === v)
                         ? 'bg-black/10 dark:bg-white/20'
                         : 'hover:bg-black/10 dark:hover:bg-white/20'
                     }`}
@@ -285,7 +283,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
             onMouseLeave={() => setShowSpeedTooltip(false)}
           >
             <button className="flex size-6 items-center justify-center text-sm font-bold transition-opacity hover:opacity-70">
-              {speed}x
+              {audioSpeed}x
             </button>
 
             <div
@@ -299,7 +297,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                 {speedLevels.map((s) => (
                   <button
                     className={`rounded-md px-3 py-1 font-bold transition-all ${
-                      speed === s
+                      audioSpeed === s
                         ? 'bg-black/10 dark:bg-white/20'
                         : 'hover:bg-black/10 dark:hover:bg-white/20'
                     }`}
@@ -315,7 +313,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
 
           {/* Loop Toggle Button */}
           <button
-            className={`rounded-full p-2 transition-all hover:scale-110 ${isLooping ? 'bg-black/10 dark:bg-white/10' : 'opacity-40 hover:opacity-70'}`}
+            className={`rounded-full p-2 transition-all hover:scale-110 ${audioLoop ? 'bg-black/10 dark:bg-white/10' : 'opacity-40 hover:opacity-70'}`}
             onClick={toggleLoop}
           >
             <Icon className="text-xl" icon="material-symbols:repeat" />
@@ -333,16 +331,9 @@ interface PlaylistProps {
   currentIndex: number;
   isPlaying: boolean;
   onSelect: (index: number) => void;
-  currentTrack: Track;
 }
 
-const Playlist: React.FC<PlaylistProps> = ({
-  tracks,
-  currentIndex,
-  isPlaying,
-  onSelect,
-  currentTrack,
-}) => {
+const Playlist: React.FC<PlaylistProps> = ({ tracks, currentIndex, isPlaying, onSelect }) => {
   return (
     <div className="glass widget flex max-h-64 flex-col overflow-hidden p-0">
       {/* Track List - Slimmed down version */}
