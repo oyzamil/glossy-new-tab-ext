@@ -1,0 +1,31 @@
+appName: WXT Starter
+appShortName: WXT Starter
+appDescription: Easily organize, categorize, and revisit your GPT conversations with folders, tags, and search.
+license:
+  invalidKey: Invalid license key.
+  notSubscribedMsg: Subscription is not active. Please renew your plan.
+  subscribedMsg: Subscription verified successfully.
+  failed: License verification failed.
+  checkFailed: Subscription check failed.
+  activate: Activate Subscription
+  dontHaveSubscription: Don't have a subscription?
+  subscribeBtn: Subscribe Now
+  verifyBtn: Verify Subscription
+formValidation:
+  mailLabel: Email
+  mailInvalid: Enter a valid email.
+  mailRequired: Email is required.
+  keyLabel: Gumroad License Key
+  keyRequired: License key is required.
+unknownError: An unknown error occured, See logs for more information!
+premiumFeature: Premium
+activate: Activate
+activated: Activated
+support: Support
+settings: Settings
+alreadySubscribedMsg: You are already subscribed!
+back: Back
+items:
+  0: No items # i18n.t('items', 0, ['Zero']) - "No items"
+  1: 1 item # i18n.t('items', 1, ['One']); - "One item"
+  n: $1 items # i18n.t('items', 1, ['One']); - "Multiple items"
