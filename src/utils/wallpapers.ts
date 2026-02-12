@@ -14,9 +14,9 @@ export interface Wallpaper {
 export const defaultWallpapers: Wallpaper[] = [
   {
     id: 'default-1',
-    name: 'Black Glass',
+    name: 'Default 1',
     type: 'image',
-    path: '/wallpapers/images/black-glass.png',
+    path: '/wallpapers/images/default-1.jpeg',
     category: 'abstract',
   },
 ];

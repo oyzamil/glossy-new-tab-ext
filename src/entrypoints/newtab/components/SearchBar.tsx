@@ -62,12 +62,12 @@ export const SearchBar: React.FC = () => {
 
   return (
     <>
-      <div className="glass widget mx-auto w-full max-w-md space-y-3 p-4">
+      <div className="glass widget mx-auto w-full max-w-xl space-y-3 p-4">
         {/* Tabs */}
-        <div className="flex justify-between">
+        <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
-              className={`rounded-full px-2 py-1 text-sm font-medium transition-colors duration-200 ${activeTab === tab ? 'bg-black/10 dark:bg-white/10' : 'opacity-40'}`}
+              className={`rounded-full px-2 py-1 text-sm font-medium transition-colors duration-200 ${activeTab === tab ? 'bg-black/20 dark:bg-white/10' : ''}`}
               key={tab}
               onClick={() => setActiveTab(tab)}
             >
@@ -79,6 +79,7 @@ export const SearchBar: React.FC = () => {
         {/* Search Input */}
         <Space.Compact
           className="relative flex items-center rounded-lg bg-white/30 pl-3 dark:bg-black/30"
+          size="large"
         >
           <Select
             className="border-none bg-transparent px-0"
@@ -96,7 +97,8 @@ export const SearchBar: React.FC = () => {
             popupMatchSelectWidth={52}
           />
           <Search
-            rootClassName="bg-transparent border-none"
+            autoFocus
+            rootClassName="bg-transparent border-none text-white"
             placeholder="Search the web..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

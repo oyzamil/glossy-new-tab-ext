@@ -11,7 +11,7 @@ import { Weather } from './components/Weather';
 const App: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(defaultWallpapers[0].path);
   const [backgroundType, setBackgroundType] = useState<'image' | 'video'>('image');
   const { settings } = useSettings();
 
@@ -195,6 +195,7 @@ const App: React.FC = () => {
 
         {/* ✅ Settings Button */}
         <FloatButton
+          className="glass hover:scale-120"
           icon={<Icon icon="material-symbols:settings" />}
           type="primary"
           style={{ right: 24, bottom: 24 }}
@@ -216,7 +217,6 @@ const App: React.FC = () => {
         }}
         mask={{
           closable: true,
-          blur: true,
         }}
       >
         <Sidebar onBackgroundChange={handleBackgroundChange} videoRef={videoRef} />

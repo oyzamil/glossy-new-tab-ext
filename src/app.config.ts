@@ -8,7 +8,7 @@ export const config = {
     extensionPage: 'https://softwebtuts.com/easily-archive-or-delete-chatgpt-chats-in-bulk/',
   },
   SETTINGS: {
-    theme: 'light' as 'light' | 'dark' | 'system',
+    theme: 'system' as 'light' | 'dark' | 'system',
     licenseModalVisible: false,
     licenseInfo: {
       email: null as string | null,

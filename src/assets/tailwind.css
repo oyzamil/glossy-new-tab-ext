@@ -21,7 +21,7 @@
     @apply relative font-['Poppins']!;
   }
   * {
-    @apply scrollbar:size-1 scrollbar-track:bg-app-100 dark:scrollbar-track:bg-neutral-400 scrollbar-thumb:bg-neutral-400 scrollbar-thumb:rounded-full dark:scrollbar-thumb:bg-neutral-600 selection:bg-app-100 selection:text-app-500;
+    @apply scrollbar:size-1 scrollbar-track:bg-app-900 dark:scrollbar-track:bg-neutral-400 scrollbar-thumb:bg-neutral-400 scrollbar-thumb:rounded-full dark:scrollbar-thumb:bg-neutral-600 selection:bg-app-100 selection:text-app-500;
   }
   .font-digital {
     font-family: 'DS-Digital', monospace;
@@ -86,7 +86,7 @@
     @apply flex flex-col items-center justify-center space-y-1;
   }
   .glass {
-    @apply bg-white/10 shadow-lg backdrop-blur-(--blur-amount) backdrop-brightness-150 dark:bg-black/70;
+    @apply bg-black/10 shadow-lg backdrop-blur-(--blur-amount) dark:bg-black/70;
   }
   kbd {
     @apply text-app-500 mx-1 my-0.5 inline-flex min-h-5 items-center justify-center rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs font-semibold shadow-sm dark:border-gray-600 dark:bg-gray-700;
@@ -140,7 +140,7 @@
     filter: blur(10px);
   }
   .widget {
-    @apply w-87.5 rounded-2xl p-4 transition-all duration-200 ease-linear;
+    @apply w-87.5 rounded-2xl p-4 text-white transition-all duration-200 ease-linear;
   }
   .shadow-inset {
     @apply shadow-[inset_0_2px_4px_rgba(255,255,255,0.2)];

@@ -211,7 +211,7 @@ export const Shortcuts: React.FC = () => {
   return (
     <>
       <div
-        className="widget glass flex-center w-auto gap-4 p-2"
+        className="widget glass flex-center w-auto gap-3 p-2"
         ref={containerRef}
         style={{
           animationName: 'slide-up',
@@ -220,18 +220,32 @@ export const Shortcuts: React.FC = () => {
         {shortcuts.map((shortcut) => (
           <div
             className={cn(
-              'group flex-center glass relative size-16.5 rounded-xl',
+              `group flex-center glass relative size-13 cursor-pointer rounded-xl transition-all duration-200 hover:-translate-y-3 hover:scale-120`,
               editMode && 'animate-tada'
             )}
             key={shortcut.id}
             onContextMenu={(e) => handleRightClick(e, shortcut.id)}
-            // href={shortcut.url}
-            //   onClick={(e) => {
-            //     if (editMode) e.preventDefault();
-            //   }}
+            // onClick={(e) => {
+            //   if (editMode) e.preventDefault();
+            //   else browser.tabs.create({ url: shortcut.url });
+            // }}
+            onClick={async (e) => {
+              if (editMode) {
+                e.preventDefault();
+              } else {
+                const [currentTab] = await browser.tabs.query({
+                  active: true,
+                  currentWindow: true,
+                });
+                if (currentTab?.id) {
+                  await browser.tabs.update(currentTab.id, { url: shortcut.url });
+                }
+              }
+            }}
             style={{
               background: shortcut.color || 'transparent',
             }}
+            title={shortcut.title}
           >
             {editMode && selectedShortcut === shortcut.id ? (
               <>
@@ -249,7 +263,7 @@ export const Shortcuts: React.FC = () => {
                     okText="Yes"
                     cancelText="No"
                   >
-                    <button className="bg-app-500 rounded-full p-2 shadow-lg transition-colors">
+                    <button className="bg-app-500 rounded-full p-1 shadow-lg transition-colors">
                       <Icon className="text-white" icon="material-symbols:delete" />
                     </button>
                   </Popconfirm>
@@ -278,7 +292,11 @@ export const Shortcuts: React.FC = () => {
           </div>
         ))}
         <div className="bg-theme block h-6 w-px" />
-        <button className="bg-theme flex-center size-16.5 rounded-xl" onClick={handleAdd}>
+        <button
+          className="bg-theme text-theme flex-center size-13 cursor-pointer rounded-xl transition-all duration-200 hover:-translate-y-3 hover:scale-120"
+          onClick={handleAdd}
+          title={'Add New Shortcut'}
+        >
           <Icon className="text-3xl" icon="material-symbols:add" />
         </button>
       </div>
