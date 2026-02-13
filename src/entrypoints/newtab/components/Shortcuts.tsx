@@ -1,106 +1,14 @@
 import { Icon } from '@iconify/react';
 import { Form, Input, Popconfirm, Radio, Upload } from 'antd';
-
-export const defaultShortcuts: Shortcut[] = [
-  {
-    id: 'google',
-    title: 'Google',
-    url: 'https://www.google.com',
-    icon: 'icon:logos:google-icon',
-    color: '#fff',
-  },
-  {
-    id: 'gmail',
-    title: 'Gmail',
-    url: 'https://mail.google.com',
-    icon: 'icon:logos:google-gmail',
-    color: '#fff',
-  },
-  {
-    id: 'youtube',
-    title: 'YouTube',
-    url: 'https://www.youtube.com',
-    icon: 'icon:simple-icons:youtube',
-    color: '#ff0000',
-    textColor: '#fff',
-  },
-  {
-    id: 'facebook',
-    title: 'Facebook',
-    url: 'https://www.facebook.com',
-    icon: 'icon:bxl:facebook',
-    color: '#1877f2',
-    textColor: '#fff',
-  },
-  {
-    id: 'instagram',
-    title: 'Instagram',
-    url: 'https://www.instagram.com',
-    icon: 'icon:simple-icons:instagram',
-    color: `linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4)`,
-    textColor: '#fff',
-  },
-  {
-    id: 'x',
-    title: 'X (Twitter)',
-    url: 'https://x.com',
-    icon: 'icon:logos:x',
-    color: '#fff',
-  },
-  {
-    id: 'linkedin',
-    title: 'LinkedIn',
-    url: 'https://www.linkedin.com',
-    icon: 'icon:bxl:linkedin',
-    color: '#0a66c2',
-    textColor: '#fff',
-  },
-  {
-    id: 'whatsapp',
-    title: 'WhatsApp',
-    url: 'https://web.whatsapp.com',
-    icon: 'icon:logos:whatsapp-icon',
-    color: '#45c654',
-  },
-  {
-    id: 'github',
-    title: 'GitHub',
-    url: 'https://github.com',
-    icon: 'icon:logos:github-icon',
-    color: '#fff',
-  },
-  {
-    id: 'chatgpt',
-    title: 'ChatGPT',
-    url: 'https://chat.openai.com',
-    icon: 'icon:simple-icons:openai',
-    color: '#fff',
-    textColor: '#000',
-  },
-  {
-    id: 'netflix',
-    title: 'Netflix',
-    url: 'https://www.netflix.com',
-    icon: 'icon:simple-icons:netflix',
-    color: '#000000',
-    textColor: 'red',
-  },
-  {
-    id: 'tiktok',
-    title: 'Tiktok',
-    url: 'https://www.tiktok.com',
-    icon: 'icon:logos:tiktok-icon',
-    color: '#000',
-  },
-];
+import { motion } from 'framer-motion';
 
 export const Shortcuts: React.FC = () => {
-  const [shortcuts, setShortcuts] = useState<Shortcut[]>(defaultShortcuts);
+  const [shortcuts, setShortcuts] = useState<Shortcut[]>(DEFAULT_SHORTCUTS);
   const [editMode, setEditMode] = useState(false);
   const [selectedShortcut, setSelectedShortcut] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null);
-  const [iconType, setIconType] = useState<'url' | 'upload'>('url');
+  const [iconType, setIconType] = useState<'url' | 'upload'>('upload');
   const [iconFile, setIconFile] = useState<string | null>(null);
   const [form] = Form.useForm();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -210,95 +118,96 @@ export const Shortcuts: React.FC = () => {
 
   return (
     <>
-      <div
-        className="widget glass flex-center w-auto gap-3 p-2"
-        ref={containerRef}
-        style={{
-          animationName: 'slide-up',
-        }}
-      >
-        {shortcuts.map((shortcut) => (
-          <div
-            className={cn(
-              `group flex-center glass relative size-13 cursor-pointer rounded-xl transition-all duration-200 hover:-translate-y-3 hover:scale-120`,
-              editMode && 'animate-tada'
-            )}
-            key={shortcut.id}
-            onContextMenu={(e) => handleRightClick(e, shortcut.id)}
-            // onClick={(e) => {
-            //   if (editMode) e.preventDefault();
-            //   else browser.tabs.create({ url: shortcut.url });
-            // }}
-            onClick={async (e) => {
-              if (editMode) {
-                e.preventDefault();
-              } else {
-                const [currentTab] = await browser.tabs.query({
-                  active: true,
-                  currentWindow: true,
-                });
-                if (currentTab?.id) {
-                  await browser.tabs.update(currentTab.id, { url: shortcut.url });
-                }
-              }
-            }}
-            style={{
-              background: shortcut.color || 'transparent',
-            }}
-            title={shortcut.title}
-          >
-            {editMode && selectedShortcut === shortcut.id ? (
-              <>
-                <button
-                  className="flex-center bg-theme text-theme h-full w-full cursor-pointer overflow-hidden rounded-xl"
-                  onClick={() => handleEdit(shortcut)}
-                >
-                  <Icon className="text-2xl" icon="material-symbols:edit" />
-                </button>
-                <div className="animate-scale-in absolute -top-2 -right-2 z-10 flex cursor-pointer gap-1">
-                  <Popconfirm
-                    title="Delete shortcut"
-                    description="Are you sure you want to delete this shortcut?"
-                    onConfirm={() => handleDelete(shortcut.id)}
-                    okText="Yes"
-                    cancelText="No"
-                  >
-                    <button className="bg-app-500 rounded-full p-1 shadow-lg transition-colors">
-                      <Icon className="text-white" icon="material-symbols:delete" />
-                    </button>
-                  </Popconfirm>
-                </div>
-              </>
-            ) : shortcut.icon && shortcut.icon.includes('icon:') ? (
-              <Icon
-                className={cn('text-3xl')}
-                icon={shortcut.icon.replace('icon:', '')}
-                style={{
-                  ...(shortcut.textColor && { color: shortcut.textColor }),
-                }}
-              />
-            ) : (
-              <img
-                className="overflow-hidden rounded-xl object-cover"
-                src={getIconSrc(shortcut)}
-                alt={shortcut.title}
-                onError={(e) => {
-                  if (!shortcut.iconFile && !shortcut.icon) {
-                    (e.target as HTMLImageElement).src = getFavicon(shortcut.url);
-                  }
-                }}
-              />
-            )}
-          </div>
-        ))}
-        <div className="bg-theme block h-6 w-px" />
-        <button
-          className="bg-theme text-theme flex-center size-13 cursor-pointer rounded-xl transition-all duration-200 hover:-translate-y-3 hover:scale-120"
-          onClick={handleAdd}
-          title={'Add New Shortcut'}
+      <div className="widget glass w-auto p-2" ref={containerRef}>
+        <motion.div
+          className="flex-center gap-3"
+          key={'shortcut-bar'}
+          initial={{ y: 25, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
         >
-          <Icon className="text-3xl" icon="material-symbols:add" />
-        </button>
+          {shortcuts.map((shortcut) => (
+            <div
+              className={cn(
+                `group flex-center glass relative size-13 cursor-pointer rounded-xl transition-all duration-200 hover:-translate-y-3 hover:scale-120`,
+                editMode && 'animate-tada'
+              )}
+              key={shortcut.id}
+              onContextMenu={(e) => handleRightClick(e, shortcut.id)}
+              // onClick={(e) => {
+              //   if (editMode) e.preventDefault();
+              //   else browser.tabs.create({ url: shortcut.url });
+              // }}
+              onClick={async (e) => {
+                if (editMode) {
+                  e.preventDefault();
+                } else {
+                  const [currentTab] = await browser.tabs.query({
+                    active: true,
+                    currentWindow: true,
+                  });
+                  if (currentTab?.id) {
+                    await browser.tabs.update(currentTab.id, { url: shortcut.url });
+                  }
+                }
+              }}
+              style={{
+                background: shortcut.color || 'transparent',
+              }}
+              title={shortcut.title}
+            >
+              {editMode && selectedShortcut === shortcut.id ? (
+                <>
+                  <button
+                    className="flex-center bg-theme text-theme h-full w-full cursor-pointer overflow-hidden rounded-xl"
+                    onClick={() => handleEdit(shortcut)}
+                  >
+                    <Icon className="text-2xl" icon="material-symbols:edit" />
+                  </button>
+                  <div className="animate-scale-in absolute -top-2 -right-2 z-10 flex cursor-pointer gap-1">
+                    <Popconfirm
+                      title="Delete shortcut"
+                      description="Are you sure you want to delete this shortcut?"
+                      onConfirm={() => handleDelete(shortcut.id)}
+                      okText="Yes"
+                      cancelText="No"
+                    >
+                      <button className="bg-app-500 rounded-full p-1 shadow-lg transition-colors">
+                        <Icon className="text-white" icon="material-symbols:delete" />
+                      </button>
+                    </Popconfirm>
+                  </div>
+                </>
+              ) : shortcut.icon && shortcut.icon.includes('icon:') ? (
+                <Icon
+                  className={cn('text-3xl')}
+                  icon={shortcut.icon.replace('icon:', '')}
+                  style={{
+                    ...(shortcut.textColor && { color: shortcut.textColor }),
+                  }}
+                />
+              ) : (
+                <img
+                  className="overflow-hidden rounded-xl object-cover"
+                  src={getIconSrc(shortcut)}
+                  alt={shortcut.title}
+                  onError={(e) => {
+                    if (!shortcut.iconFile && !shortcut.icon) {
+                      (e.target as HTMLImageElement).src = getFavicon(shortcut.url);
+                    }
+                  }}
+                />
+              )}
+            </div>
+          ))}
+          <div className="bg-theme block h-6 w-px" />
+          <button
+            className="bg-theme flex-center size-13 cursor-pointer rounded-xl transition-all duration-200 hover:-translate-y-3 hover:scale-120"
+            onClick={handleAdd}
+            title={'Add New Shortcut'}
+          >
+            <Icon className="text-theme text-3xl" icon="material-symbols:add" />
+          </button>
+        </motion.div>
       </div>
 
       <Modal
@@ -328,6 +237,17 @@ export const Shortcuts: React.FC = () => {
             ]}
           >
             <Input className="min-w-87.5" placeholder="https://example.com" />
+          </Form.Item>
+          <Form.Item name="color" label="Background Color">
+            <AppColorPicker
+              onChange={(color) => form.setFieldValue('color', color.toHexString())}
+            />
+          </Form.Item>
+
+          <Form.Item name="textColor" label="Text Color">
+            <AppColorPicker
+              onChange={(color) => form.setFieldValue('textColor', color.toHexString())}
+            />
           </Form.Item>
 
           <Form.Item label="Icon Source">

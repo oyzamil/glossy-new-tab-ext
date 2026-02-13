@@ -2,13 +2,13 @@ import { defineAppConfig } from 'wxt/utils/define-app-config';
 
 export const config = {
   APP: {
-    color: '#d10028',
+    color: '#00aa45',
     font: 'Poppins',
-    storageBucket: 'wxt-settings',
-    extensionPage: 'https://softwebtuts.com/easily-archive-or-delete-chatgpt-chats-in-bulk/',
+    storageBucket: 'glossy-new-tab-ext',
+    extensionPage: 'https://muzammil.work/',
   },
   SETTINGS: {
-    theme: 'system' as 'light' | 'dark' | 'system',
+    theme: 'dark' as 'light' | 'dark' | 'system',
     licenseModalVisible: false,
     licenseInfo: {
       email: null as string | null,
@@ -23,8 +23,10 @@ export const config = {
     },
     glassMorphism: true as boolean,
     blurAmount: 10 as number,
+    showTimeInStandby: false as boolean,
     clockWidget: true as boolean,
-    weatherWidget: true as boolean,
+    quotesWidget: false as boolean,
+    multiWidget: false as boolean,
     audioPlayerWidget: false as boolean,
     audioLoop: true as boolean,
     audioVolume: 0.25 as number,
@@ -32,6 +34,8 @@ export const config = {
     audioSpeed: 1 as number,
     currentAudioIndex: 0 as number,
     videoPlayback: true as boolean,
+    hideControlsOnInactivity: true as boolean,
+    multiWidgetMode: 'weather' as 'weather' | 'clock' | 'calender',
   },
   ROUTES: {
     HOME: '/',

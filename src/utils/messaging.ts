@@ -1,6 +1,5 @@
-import { NotifyOptions } from '@/entrypoints/background/notifier';
+import { NotifyOptions } from '@/entrypoints/background/managers/notificationManager';
 import { defineExtensionMessaging } from '@webext-core/messaging';
-import { defineWindowMessaging } from '@webext-core/messaging/page';
 
 export const GENERAL_MESSAGES = {
   SHOW_NOTIFICATION: 'SHOW_NOTIFICATION',
@@ -26,6 +25,6 @@ interface ProtocolMap {
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();
 
-export const websiteMessenger = defineWindowMessaging<ProtocolMap>({
-  namespace: 'CAPTURE_IT_MESSAGES',
-});
+// export const websiteMessenger = defineWindowMessaging<ProtocolMap>({
+//   namespace: 'CAPTURE_IT_MESSAGES',
+// });

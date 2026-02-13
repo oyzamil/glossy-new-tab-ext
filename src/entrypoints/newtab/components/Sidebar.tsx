@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
     });
     try {
       saveSettings(settings);
-      message.success({ key: 'saving', content: 'Settings saved' });
+      message.success({ key: 'saving', content: 'Settings Applied 🎊' });
     } catch (error) {
       message.error({
         key: 'saving',
@@ -116,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
   const loadCurrentBackground = async () => {
     if (activeWallpaperId) {
       // Check if it's a default wallpaper
-      const defaultWallpaper = defaultWallpapers.find((w) => w.id === activeWallpaperId);
+      const defaultWallpaper = DEFAULT_WALLPAPERS.find((w) => w.id === activeWallpaperId);
       if (defaultWallpaper) {
         onBackgroundChange(defaultWallpaper.path, defaultWallpaper.type);
         return;
@@ -164,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
   const handleSetBackground = async (id: string, isDefault: boolean = false) => {
     if (isDefault) {
       // Handle default wallpaper
-      const wallpaper = defaultWallpapers.find((w) => w.id === id);
+      const wallpaper = DEFAULT_WALLPAPERS.find((w) => w.id === id);
       if (wallpaper) {
         // Store default wallpaper ID in localStorage since it's not in IndexedDB
         localStorage.setItem('defaultWallpaperId', id);
@@ -302,13 +302,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
             />
           </Form.Item>
 
-          <Form.Item label="Weather" name="weatherWidget">
-            <Switch
-              checked={settings.weatherWidget}
-              onChange={(checked) => form.setFieldValue('weatherWidget', checked)}
-            />
-          </Form.Item>
-
           <Form.Item label="Player" name="audioPlayerWidget">
             <Switch
               checked={settings.audioPlayerWidget}
@@ -318,21 +311,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
               }}
             />
           </Form.Item>
+          <Form.Item label="Quotes" name="quotesWidget">
+            <Switch
+              checked={settings.quotesWidget}
+              onChange={(checked) => {
+                form.setFieldValue('quotesWidget', checked);
+              }}
+            />
+          </Form.Item>
+          <Form.Item label="Multi Widget" name="multiWidget">
+            <Switch
+              checked={settings.multiWidget}
+              onChange={(checked) => form.setFieldValue('multiWidget', checked)}
+            />
+          </Form.Item>
         </Card>
 
         <Card className="w-full" title="Appearance" size="small">
+          <Form.Item label="Blur Amount" name="blurAmount">
+            <Slider
+              min={1}
+              max={100}
+              value={settings.blurAmount}
+              onChange={(value) => form.setFieldValue('blurAmount', value)}
+            />
+          </Form.Item>
           <Form.Item label="Glass Effect" name="glassMorphism">
             <Switch
               checked={settings.glassMorphism}
               onChange={(checked) => form.setFieldValue('glassMorphism', checked)}
             />
           </Form.Item>
-          <Form.Item label="Blur Amount" name="blurAmount">
-            <Slider
-              min={0}
-              max={100}
-              value={settings.blurAmount}
-              onChange={(value) => form.setFieldValue('blurAmount', value)}
+
+          {/* <Form.Item label="Show Time in Standby" name="showTimeInStandby">
+            <Switch
+              checked={settings.showTimeInStandby}
+              onChange={(checked) => form.setFieldValue('showTimeInStandby', checked)}
+            />
+          </Form.Item> */}
+          <Form.Item label="Hide Controls on Inactivity" name="hideControlsOnInactivity">
+            <Switch
+              checked={settings.hideControlsOnInactivity}
+              onChange={(checked) => form.setFieldValue('hideControlsOnInactivity', checked)}
             />
           </Form.Item>
         </Card>
@@ -430,7 +450,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
                           <div className="flex flex-col">
                             <span className="text-sm font-medium">{bg.name}</span>
 
-                            <span className="text-xs opacity-70">
+                            <span className="text-xs capitalize opacity-70">
                               {bg.type === 'image' ? 'Image' : 'Video'} • {formatSize(bg.data.size)}
                             </span>
                           </div>
@@ -477,7 +497,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
             label: 'Default Wallpapers',
             children: (
               <CustomList
-                dataSource={defaultWallpapers}
+                dataSource={DEFAULT_WALLPAPERS}
                 empty={<Empty description="No default wallpapers available." />}
                 renderItem={(wallpaper) => {
                   const isActive = localStorage.getItem('defaultWallpaperId') === wallpaper.id;
@@ -502,7 +522,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
 
                         <div className="flex flex-col">
                           <span className="text-sm">{wallpaper.name}</span>
-                          <span className="text-xs">
+                          <span className="text-xs capitalize">
                             {wallpaper.category || 'Default'} • {wallpaper.type}
                           </span>
                         </div>
@@ -524,7 +544,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
         ]}
       />
 
-      {(activeWallpaperId || localStorage.getItem('defaultWallpaperId')) && (
+      {/* {(activeWallpaperId || localStorage.getItem('defaultWallpaperId')) && (
         <Button
           type="primary"
           danger
@@ -534,7 +554,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
         >
           Clear Current Background
         </Button>
-      )}
+      )} */}
     </div>
   );
 };

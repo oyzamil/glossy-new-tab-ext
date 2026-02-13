@@ -1,17 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Drawer, FloatButton } from 'antd';
+import { motion } from 'framer-motion';
 import { AudioPlayer } from './components/AudioPlayer';
-import { Clock } from './components/Clock';
+import MultiWidget from './components/MultiWidget';
+import Digital from './components/MultiWidget/Digital';
+import Quotes from './components/Quotes';
 import { SearchBar } from './components/SearchBar';
 import { Shortcuts } from './components/Shortcuts';
 import { Sidebar } from './components/Sidebar';
-import { Weather } from './components/Weather';
 
 const App: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(defaultWallpapers[0].path);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [backgroundType, setBackgroundType] = useState<'image' | 'video'>('image');
   const { settings } = useSettings();
 
@@ -20,7 +22,7 @@ const App: React.FC = () => {
   // Use the wallpaper store hook
   const { activeWallpaperId, loadWallpaperUrl, getWallpaperBlob } = useWallpaperStore();
 
-  const { activeUrl, fade } = useBackgroundMedia({
+  const { activeUrl } = useBackgroundMedia({
     url: backgroundUrl,
     type: backgroundType,
     videoRef,
@@ -32,7 +34,7 @@ const App: React.FC = () => {
     const initialize = async () => {
       const defaultWallpaperId = localStorage.getItem('defaultWallpaperId');
       if (defaultWallpaperId) {
-        const defaultWallpaper = defaultWallpapers.find((w) => w.id === defaultWallpaperId);
+        const defaultWallpaper = DEFAULT_WALLPAPERS.find((w) => w.id === defaultWallpaperId);
         if (defaultWallpaper) {
           setBackgroundUrl(defaultWallpaper.path);
           setBackgroundType(defaultWallpaper.type);
@@ -138,13 +140,15 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const opacityClass =
+    settings.hideControlsOnInactivity && !isActive ? 'opacity-10' : 'opacity-100';
+
   return (
     <div
       className="relative flex h-dvh w-dvw items-center"
       style={
         {
-          // CSS variables must be written in quotes if they have a dash
-          '--blur-amount': `${settings.blurAmount}px`,
+          '--blur-amount': `${!settings.glassMorphism ? 0 : settings.blurAmount}px`,
         } as React.CSSProperties
       }
     >
@@ -152,8 +156,14 @@ const App: React.FC = () => {
       <div className="absolute inset-0">
         {activeUrl &&
           (backgroundType === 'video' ? (
-            <video
-              className={`h-dvh w-dvw object-cover object-center ${fade ? 'fade-in' : ''}`}
+            <motion.video
+              className={'h-dvh w-dvw object-cover object-center'}
+              initial={{ '--blur': '10px' } as any}
+              animate={{ '--blur': '0px' } as any}
+              transition={{ duration: 0.1 }}
+              style={{
+                filter: 'blur(var(--blur))',
+              }}
               key={activeUrl}
               ref={videoRef}
               src={activeUrl}
@@ -163,39 +173,51 @@ const App: React.FC = () => {
               autoPlay={settings.videoPlayback}
             />
           ) : (
-            <img
-              className={`h-dvh w-dvw object-cover object-center ${fade ? 'fade-in' : ''}`}
+            <motion.img
+              className={'h-dvh w-dvw object-cover object-center'}
+              initial={{ '--blur': '10px' } as any}
+              animate={{ '--blur': '0px' } as any}
+              transition={{ duration: 0.1 }}
+              style={{
+                filter: 'blur(var(--blur))',
+              }}
               key={activeUrl}
               src={activeUrl}
               alt="Background"
             />
           ))}
       </div>
-      <div className={cn('transition-all duration-300', isActive ? 'opacity-100' : 'opacity-10')}>
+      <div className={cn('z-10 transition-all duration-300', opacityClass)}>
         {/* ✅ Clock Widget */}
-        <div className="absolute top-3 right-3 z-10 space-y-3">
-          {settings.clockWidget && <Clock />}
+        <div className="absolute top-3 right-3 space-y-3">
+          {settings.multiWidget && <MultiWidget />}
         </div>
 
         {/* ✅ Search Bar */}
-        <div className="search-section absolute top-1/2 z-10 w-full -translate-y-1/2">
+        <div className="search-section text-theme-inverse absolute top-1/2 w-full -translate-y-1/2">
+          {settings.clockWidget && <Digital />}
           <SearchBar />
         </div>
 
         {/* ✅ Shortcuts */}
-        <div className="shortcuts-section absolute right-0 bottom-4 left-0 z-10 flex items-center justify-center">
+        <div className="shortcuts-section absolute right-0 bottom-4 left-0 flex items-center justify-center">
           <Shortcuts />
         </div>
 
-        {/* ✅ Bottom Left Widgets */}
-        <div className="absolute bottom-3 left-3 z-10 space-y-3">
+        {/* Top Left Widgets */}
+        <div className="absolute top-3 left-3 space-y-3">
           {settings.audioPlayerWidget && <AudioPlayer />}
-          {settings.weatherWidget && <Weather />}
+        </div>
+
+        {/* ✅ Bottom Left Widgets */}
+        <div className="absolute bottom-3 left-3 space-y-3">
+          {settings.quotesWidget && <Quotes />}
         </div>
 
         {/* ✅ Settings Button */}
+
         <FloatButton
-          className="glass hover:scale-120"
+          className="glass text-2xl hover:scale-120"
           icon={<Icon icon="material-symbols:settings" />}
           type="primary"
           style={{ right: 24, bottom: 24 }}
@@ -209,7 +231,7 @@ const App: React.FC = () => {
         placement="right"
         onClose={() => setSidebarOpen(false)}
         open={sidebarOpen}
-        size={400}
+        size={350}
         styles={{
           body: {
             padding: '16px',

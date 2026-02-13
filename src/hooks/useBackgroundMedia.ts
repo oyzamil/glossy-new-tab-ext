@@ -14,7 +14,6 @@ export const useBackgroundMedia = ({
   autoPlay = true,
 }: UseBackgroundMediaOptions) => {
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
-  const [fade, setFade] = useState(false);
   const previousUrlRef = useRef<string | null>(null);
 
   /* ========================
@@ -48,13 +47,8 @@ export const useBackgroundMedia = ({
     };
 
     const switchMedia = () => {
-      setFade(false);
-
-      setTimeout(() => {
-        cleanupOldUrl();
-        setActiveUrl(url);
-        setFade(true);
-      }, 100);
+      cleanupOldUrl();
+      setActiveUrl(url);
     };
 
     preload();
@@ -98,6 +92,5 @@ export const useBackgroundMedia = ({
 
   return {
     activeUrl,
-    fade,
   };
 };

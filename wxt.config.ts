@@ -34,15 +34,19 @@ export default defineConfig({
       name: '__MSG_appName__',
       description: '__MSG_appDescription__',
       default_locale: 'en',
-      permissions: ['storage', 'unlimitedStorage'],
+      permissions: ['storage', 'unlimitedStorage', 'history'],
       chrome_url_overrides: {
         newtab: 'newtab.html',
       },
+      host_permissions: ['https://type.fit/*'],
       //   options_ui: {
       //     page: 'opts.html',
       //     open_in_tab: true,
       //   },
     };
+    if (browser !== 'firefox') {
+      manifestBase.permissions.push('offscreen');
+    }
     if (browser === 'firefox') {
       manifestBase.browser_specific_settings = {
         gecko: {

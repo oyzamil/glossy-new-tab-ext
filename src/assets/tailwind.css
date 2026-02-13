@@ -9,30 +9,25 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
-  @font-face {
-    font-family: 'DS-Digital';
-    font-style: normal;
-    font-weight: 400 700;
-    font-display: swap;
-    src: url('/fonts/digit/DS-DIGI.ttf') format('truetype');
-  }
-
   body:not(#content-ui) {
     @apply relative font-['Poppins']!;
   }
   * {
-    @apply scrollbar:size-1 scrollbar-track:bg-app-900 dark:scrollbar-track:bg-neutral-400 scrollbar-thumb:bg-neutral-400 scrollbar-thumb:rounded-full dark:scrollbar-thumb:bg-neutral-600 selection:bg-app-100 selection:text-app-500;
-  }
-  .font-digital {
-    font-family: 'DS-Digital', monospace;
+    @apply scrollbar:size-1 scrollbar-track:bg-app-900 scrollbar-thumb:bg-black/60 selection:bg-app-100 selection:text-app-500 dark:selection:text-app-900 dark:selection:bg-white/50;
   }
   mark {
     @apply bg-app-500 mx-0.5 rounded px-1 whitespace-nowrap text-white;
+  }
+  .font-outfit {
+    font-family: 'Outfit', sans-serif;
   }
 }
 @layer components {
   .bg-theme {
     @apply bg-white dark:bg-black;
+  }
+  .bg-theme-inverse {
+    @apply bg-black dark:bg-white;
   }
   .text-theme {
     @apply text-black dark:text-white;
@@ -140,16 +135,16 @@
     filter: blur(10px);
   }
   .widget {
-    @apply w-87.5 rounded-2xl p-4 text-white transition-all duration-200 ease-linear;
+    @apply w-87 rounded-2xl p-4 text-white transition-all duration-200 ease-linear;
   }
   .shadow-inset {
     @apply shadow-[inset_0_2px_4px_rgba(255,255,255,0.2)];
   }
-  .fade-in {
-    @apply opacity-100;
-  }
   .animate-tada {
     animation: animate-tada 0.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  .fade-in {
+    animation: fadeIn 300ms ease forwards;
   }
 }
 @layer utilities {

@@ -6,6 +6,15 @@ const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
 
+export interface Wallpaper {
+  id: string;
+  name: string;
+  type: 'image' | 'video';
+  path: string;
+  thumbnail?: string;
+  category?: string;
+}
+
 export interface StoredWallpaper {
   id?: string;
   type: 'image' | 'video';
