@@ -1,9 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Space } from 'antd';
 import { motion } from 'framer-motion';
 
+interface Track {
+  id: string;
+  name: string;
+  path: string;
+  isCustom?: boolean;
+  data?: Blob;
+}
+
 const AudioPlayer: React.FC = () => {
+  const { getAudioBlob, listAudio } = useAudioStore();
+
+  // State from background
   const [currentAudioIndex, setCurrentAudioIndex] = useState<number>(0);
   const [audioPlaying, setAudioPlaying] = useState<boolean>(false);
   const [audioVolume, setAudioVolume] = useState<number>(1);
@@ -12,18 +23,106 @@ const AudioPlayer: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  // UI State
   const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
   const [showVolumeTooltip, setShowVolumeTooltip] = useState<boolean>(false);
   const [showSpeedTooltip, setShowSpeedTooltip] = useState<boolean>(false);
   const [playlistPosition, setPlaylistPosition] = useState<'top' | 'bottom'>('top');
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [customTracks, setCustomTracks] = useState<any[]>([]);
 
   const playerRef = useRef<HTMLDivElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastKnownPlayingState = useRef<boolean>(false);
 
-  const currentTrack = DEFAULT_TRACKS[currentAudioIndex];
+  // Load custom audio tracks
+  const loadCustomTracks = useCallback(async () => {
+    try {
+      const { items } = await listAudio();
+      const tracks = await Promise.all(
+        items.map(async (item) => {
+          const blob = await getAudioBlob(item.id);
+          return {
+            id: item.id,
+            name: item.name,
+            data: blob,
+            createdAt: item.createdAt,
+          };
+        })
+      );
+      setCustomTracks(tracks.filter(Boolean));
+    } catch (error) {
+      console.error('Failed to load custom audio tracks:', error);
+      setCustomTracks([]);
+    }
+  }, [listAudio, getAudioBlob]);
+
+  // Initial load
+  useEffect(() => {
+    loadCustomTracks();
+  }, [loadCustomTracks]);
+
+  // Listen for audio updates (when new audio is uploaded)
+  useEffect(() => {
+    const handleAudioUpdate = () => {
+      loadCustomTracks();
+    };
+
+    window.addEventListener('audio-uploaded', handleAudioUpdate);
+
+    // BroadcastChannel for cross-tab updates
+    const bc = new BroadcastChannel('media-store');
+    bc.onmessage = (event) => {
+      if (event.data.type === 'MEDIA_UPDATED' && event.data.tableType === 'audio') {
+        loadCustomTracks();
+      }
+    };
+
+    return () => {
+      window.removeEventListener('audio-uploaded', handleAudioUpdate);
+      bc.close();
+    };
+  }, [loadCustomTracks]);
+
+  // Memoize combined tracks to prevent recreation
+  const allTracks: Track[] = useMemo(
+    () => [
+      ...customTracks.map((track) => ({
+        id: track.id,
+        name: track.name,
+        path: track.data ? URL.createObjectURL(track.data) : '',
+        isCustom: true,
+        data: track.data,
+      })),
+      ...ALL_DEFAULT_AUDIO.map((audio) => ({
+        ...audio,
+        isCustom: false,
+      })),
+    ],
+    [customTracks]
+  );
+
+  // Send tracks to offscreen when they change (with debouncing)
+  useEffect(() => {
+    if (allTracks.length === 0) return;
+
+    // Debounce to prevent rapid updates
+    const timeoutId = setTimeout(async () => {
+      try {
+        await audioMessaging.sendMessage('updateTracks', allTracks);
+        console.log('Tracks sent to offscreen:', allTracks.length);
+      } catch (error) {
+        // Silently ignore - offscreen may not be ready yet
+        console.debug('Offscreen not ready for tracks update');
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [allTracks.length]); // ✅ Only depend on length, not the whole array
+
+  const currentTrack = allTracks[currentAudioIndex];
   const isPlaylistEffectivelyVisible = showPlaylist && !showVolumeTooltip && !showSpeedTooltip;
 
   // Update local state from audio state
@@ -43,16 +142,23 @@ const AudioPlayer: React.FC = () => {
   useEffect(() => {
     const initializePlayer = async () => {
       try {
-        const state = await audioMessaging.sendMessage('getState');
+        // Wait a bit for offscreen to be ready
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const state = await audioMessaging.sendMessage('getState', undefined);
 
         // If duration is 0, load the first track
         if (!state.duration || state.duration === 0) {
           console.log('No track loaded, loading first track...');
-          const newState = await audioMessaging.sendMessage('setTrack', {
-            index: 0,
-            autoPlay: false,
-          });
-          updateStateFromResponse(newState);
+
+          // Wait for tracks to be available
+          if (allTracks.length > 0) {
+            const newState = await audioMessaging.sendMessage('setTrack', {
+              index: 0,
+              autoPlay: false,
+            });
+            updateStateFromResponse(newState);
+          }
         } else {
           updateStateFromResponse(state);
         }
@@ -64,10 +170,13 @@ const AudioPlayer: React.FC = () => {
       }
     };
 
-    initializePlayer();
-  }, [updateStateFromResponse]);
+    // Only initialize after tracks are loaded
+    if (allTracks.length > 0) {
+      initializePlayer();
+    }
+  }, [updateStateFromResponse, allTracks.length]);
 
-  // Listen for state sync messages from background (high priority)
+  // Listen for state sync messages from background
   useEffect(() => {
     const unsubscribe = audioMessaging.onMessage('syncState', async ({ data: state }) => {
       updateStateFromResponse(state);
@@ -76,34 +185,29 @@ const AudioPlayer: React.FC = () => {
     return unsubscribe;
   }, [updateStateFromResponse]);
 
-  // Periodic polling for time updates only
+  // Periodic polling for time updates
   useEffect(() => {
     if (!isInitialized) return;
 
     const pollState = async () => {
       try {
-        const state = await audioMessaging.sendMessage('getState');
-
-        // Always update time
+        const state = await audioMessaging.sendMessage('getState', undefined);
         setCurrentTime(state.currentTime);
         setDuration(state.duration);
 
-        // Update playing state if it changed
         if (state.audioPlaying !== lastKnownPlayingState.current) {
           setAudioPlaying(state.audioPlaying);
           lastKnownPlayingState.current = state.audioPlaying;
         }
 
-        // Also update index in case track changed
         if (state.currentAudioIndex !== currentAudioIndex) {
           updateStateFromResponse(state);
         }
       } catch (error) {
-        // Silently ignore - background might not be ready
+        // Silently ignore
       }
     };
 
-    // Poll every 1 second for time updates
     pollIntervalRef.current = setInterval(pollState, 1000);
 
     return () => {
@@ -121,25 +225,11 @@ const AudioPlayer: React.FC = () => {
   };
 
   const handlePlayPause = async (): Promise<void> => {
-    // Immediately toggle UI for instant feedback
-    const newPlayingState = !audioPlaying;
-    setAudioPlaying(newPlayingState);
-    lastKnownPlayingState.current = newPlayingState;
-
     try {
-      const state = await audioMessaging.sendMessage('toggle');
-
-      // Force update with actual state from backend
-      setAudioPlaying(state.audioPlaying);
-      lastKnownPlayingState.current = state.audioPlaying;
-
-      // Update rest of the state
+      const state = await audioMessaging.sendMessage('toggle', undefined);
       updateStateFromResponse(state);
     } catch (error) {
       console.error('Failed to toggle playback:', error);
-      // Revert on error
-      setAudioPlaying(!newPlayingState);
-      lastKnownPlayingState.current = !newPlayingState;
     }
   };
 
@@ -149,9 +239,6 @@ const AudioPlayer: React.FC = () => {
       const x = e.clientX - rect.left;
       const percentage = Math.max(0, Math.min(1, x / rect.width));
       const newTime = percentage * duration;
-
-      // Optimistically update UI
-      setCurrentTime(newTime);
 
       try {
         const state = await audioMessaging.sendMessage('seek', newTime);
@@ -164,27 +251,15 @@ const AudioPlayer: React.FC = () => {
 
   const toggleMute = async (): Promise<void> => {
     const newVolume = isMuted ? 1 : 0;
-
-    // Optimistically update UI
-    setIsMuted(!isMuted);
-    setAudioVolume(newVolume);
-
     try {
       const state = await audioMessaging.sendMessage('setVolume', newVolume);
       updateStateFromResponse(state);
     } catch (error) {
       console.error('Failed to toggle mute:', error);
-      // Revert on error
-      setIsMuted(isMuted);
-      setAudioVolume(audioVolume);
     }
   };
 
   const setVolumeLevel = async (level: number): Promise<void> => {
-    // Optimistically update UI
-    setAudioVolume(level);
-    setIsMuted(level === 0);
-
     try {
       const state = await audioMessaging.sendMessage('setVolume', level);
       updateStateFromResponse(state);
@@ -194,9 +269,6 @@ const AudioPlayer: React.FC = () => {
   };
 
   const setPlaybackSpeed = async (newSpeed: number): Promise<void> => {
-    // Optimistically update UI
-    setAudioSpeed(newSpeed);
-
     try {
       const state = await audioMessaging.sendMessage('setSpeed', newSpeed);
       updateStateFromResponse(state);
@@ -218,16 +290,11 @@ const AudioPlayer: React.FC = () => {
   );
 
   const toggleLoop = async (): Promise<void> => {
-    // Optimistically update UI
-    setAudioLoop(!audioLoop);
-
     try {
       const state = await audioMessaging.sendMessage('setLoop', !audioLoop);
       updateStateFromResponse(state);
     } catch (error) {
       console.error('Failed to toggle loop:', error);
-      // Revert on error
-      setAudioLoop(audioLoop);
     }
   };
 
@@ -270,7 +337,6 @@ const AudioPlayer: React.FC = () => {
       <div
         className={cn(
           'absolute inset-x-0 z-10 origin-center transform transition-transform duration-300',
-
           isPlaylistEffectivelyVisible
             ? 'translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none translate-y-2 scale-95 opacity-0',
@@ -278,7 +344,7 @@ const AudioPlayer: React.FC = () => {
         )}
       >
         <Playlist
-          tracks={DEFAULT_TRACKS}
+          tracks={allTracks}
           currentIndex={currentAudioIndex}
           isPlaying={audioPlaying}
           onSelect={handleSelectTrack}
@@ -435,17 +501,24 @@ interface PlaylistProps {
 }
 
 const Playlist: React.FC<PlaylistProps> = ({ tracks, currentIndex, isPlaying, onSelect }) => {
+  // Derive active track ID from currentIndex
+  const activeTrackId = tracks[currentIndex]?.id;
+
   return (
     <div className="glass widget flex max-h-64 flex-col overflow-hidden p-0">
-      {/* Track List - Slimmed down version */}
       <div className="playlist-scroll space-y-0.5 overflow-y-auto p-1.5">
-        {tracks.map((track, index) => {
-          const isActive = index === currentIndex;
+        {tracks.map((track) => {
+          const isActive = track.id === activeTrackId;
+
           return (
             <button
               className={`group flex w-full items-center gap-1 rounded-md px-2 py-2 transition-all duration-200 ${isActive ? 'bg-black/50' : 'hover:bg-black/50'}`}
               key={track.id}
-              onClick={() => onSelect(index)}
+              onClick={() => {
+                // Find real index at time of click
+                const realIndex = tracks.findIndex((t) => t.id === track.id);
+                onSelect(realIndex);
+              }}
             >
               <div className="flex h-5 w-5 shrink-0 items-center justify-center">
                 {isActive ? (
@@ -456,16 +529,12 @@ const Playlist: React.FC<PlaylistProps> = ({ tracks, currentIndex, isPlaying, on
                 ) : (
                   <Icon
                     className="text-3xl opacity-0 transition-opacity group-hover:opacity-40"
-                    icon={'material-symbols:play-arrow'}
+                    icon="material-symbols:play-arrow"
                   />
                 )}
               </div>
 
-              <span className={'line-clamp-1 grow text-left text-sm font-medium'}>
-                {track.name}
-              </span>
-
-              {/* <span className="ml-auto text-[11px] tabular-nums opacity-40">{track.duration}</span> */}
+              <span className="line-clamp-1 grow text-left text-sm font-medium">{track.name}</span>
             </button>
           );
         })}

@@ -10,6 +10,10 @@ import { SearchBar } from './components/SearchBar';
 import { Shortcuts } from './components/Shortcuts';
 import { Sidebar } from './components/Sidebar';
 
+async function getMediaType(blob: Blob): Promise<'image' | 'video'> {
+  return blob.type.startsWith('video/') ? 'video' : 'image';
+}
+
 const App: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -17,10 +21,15 @@ const App: React.FC = () => {
   const [backgroundType, setBackgroundType] = useState<'image' | 'video'>('image');
   const { settings } = useSettings();
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Use the wallpaper store hook
-  const { activeWallpaperId, loadWallpaperUrl, getWallpaperBlob } = useWallpaperStore();
+  const {
+    wallpaperUrl,
+    isLoading: wallpaperLoading,
+    activeWallpaperId,
+    getWallpaperBlob,
+  } = useWallpaperStore();
 
   const { activeUrl } = useBackgroundMedia({
     url: backgroundUrl,
@@ -29,12 +38,25 @@ const App: React.FC = () => {
     autoPlay: settings.videoPlayback,
   });
 
-  // ✅ LOAD SETTINGS AND INITIAL BACKGROUND ON APP START
   useEffect(() => {
+    if (wallpaperLoading) return;
+
     const initialize = async () => {
+      // 1. If user has a custom wallpaper, use it
+      if (wallpaperUrl && activeWallpaperId) {
+        const blob = await getWallpaperBlob(activeWallpaperId);
+        if (blob) {
+          const type = await getMediaType(blob);
+          setBackgroundUrl(wallpaperUrl);
+          setBackgroundType(type);
+          return;
+        }
+      }
+
+      // 2. Check for saved default wallpaper preference
       const defaultWallpaperId = localStorage.getItem('defaultWallpaperId');
       if (defaultWallpaperId) {
-        const defaultWallpaper = DEFAULT_WALLPAPERS.find((w) => w.id === defaultWallpaperId);
+        const defaultWallpaper = ALL_DEFAULT_WALLPAPERS.find((w) => w.id === defaultWallpaperId);
         if (defaultWallpaper) {
           setBackgroundUrl(defaultWallpaper.path);
           setBackgroundType(defaultWallpaper.type);
@@ -42,44 +64,18 @@ const App: React.FC = () => {
         }
       }
 
-      // Load custom wallpaper from IndexedDB via hook
-      if (activeWallpaperId) {
-        const url = await loadWallpaperUrl(activeWallpaperId);
-        const blob = await getWallpaperBlob(activeWallpaperId);
-
-        if (url && blob) {
-          setBackgroundUrl(url);
-          setBackgroundType(blob.type.startsWith('video/') ? 'video' : 'image');
-        }
+      // 3. Show a random default wallpaper
+      if (ALL_DEFAULT_WALLPAPERS.length > 0) {
+        const randomWallpaper =
+          ALL_DEFAULT_WALLPAPERS[Math.floor(Math.random() * ALL_DEFAULT_WALLPAPERS.length)];
+        setBackgroundUrl(randomWallpaper.path);
+        setBackgroundType(randomWallpaper.type);
       }
     };
 
     initialize();
-  }, []); // Run once on mount
+  }, [wallpaperLoading, wallpaperUrl, activeWallpaperId]);
 
-  // ✅ WATCH FOR CHANGES TO ACTIVE WALLPAPER ID
-  useEffect(() => {
-    const updateBackground = async () => {
-      if (!activeWallpaperId) return;
-
-      const url = await loadWallpaperUrl(activeWallpaperId);
-      const blob = await getWallpaperBlob(activeWallpaperId);
-
-      if (url && blob) {
-        // Clean up old blob URL if it exists
-        if (backgroundUrl && backgroundUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(backgroundUrl);
-        }
-
-        setBackgroundUrl(url);
-        setBackgroundType(blob.type.startsWith('video/') ? 'video' : 'image');
-      }
-    };
-
-    updateBackground();
-  }, [activeWallpaperId]); // Runs when activeWallpaperId changes
-
-  // ✅ CLEANUP BLOB URLs ON UNMOUNT
   useEffect(() => {
     return () => {
       if (backgroundUrl && backgroundUrl.startsWith('blob:')) {

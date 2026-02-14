@@ -94,6 +94,31 @@ export default defineBackground(() => {
       return await audioMessaging.sendMessage('getState', undefined);
     });
 
+    audioMessaging.onMessage('updateTracks', async ({ data }) => {
+      try {
+        await offscreenManager.create();
+        const state = await audioMessaging.sendMessage('updateTracks', data);
+        return state; // ✅ Must return the state
+      } catch (error) {
+        console.error('Failed to update tracks:', error);
+        // Return current state even on error
+        try {
+          return await audioMessaging.sendMessage('getState', undefined);
+        } catch {
+          // Fallback state
+          return {
+            currentAudioIndex: 0,
+            audioPlaying: false,
+            audioVolume: 1,
+            audioLoop: false,
+            audioSpeed: 1,
+            currentTime: 0,
+            duration: 0,
+          };
+        }
+      }
+    });
+
     async function broadcastStateToTabs(state: AudioState): Promise<void> {
       try {
         const tabs = await browser.tabs.query({});

@@ -176,26 +176,23 @@ export const DEFAULT_SHORTCUTS: Shortcut[] = [
 ];
 
 export const DEFAULT_TRACKS = [
-  { id: '1', name: 'Ariis Gozalo Phonk', path: '/audio/ariis-gozalo-phonk.mp3' },
-  { id: '2', name: 'Phonk', path: '/audio/phonk.mp3' },
-  { id: '3', name: 'Birds', path: '/audio/birds.mp3' },
-  { id: '4', name: 'Campfire', path: '/audio/campfire.mp3' },
-  { id: '5', name: 'Chimes', path: '/audio/chimes.mp3' },
-  { id: '6', name: 'Night', path: '/audio/night.mp3' },
-  { id: '7', name: 'Playground', path: '/audio/playground.mp3' },
-  { id: '8', name: 'Rain', path: '/audio/rain.mp3' },
-  { id: '9', name: 'River', path: '/audio/river.mp3' },
-  { id: '10', name: 'Storm', path: '/audio/storm.mp3' },
-  { id: '11', name: 'Swamp', path: '/audio/swamp.mp3' },
-  { id: '12', name: 'Train', path: '/audio/train.mp3' },
-  { id: '13', name: 'Vinyl', path: '/audio/vinyl.mp3' },
+  '/audio/ariis-gozalo-phonk.mp3',
+  '/audio/phonk.mp3',
+  '/audio/birds.mp3',
+  '/audio/campfire.mp3',
+  '/audio/chimes.mp3',
+  '/audio/night.mp3',
+  '/audio/playground.mp3',
+  '/audio/rain.mp3',
+  '/audio/river.mp3',
+  '/audio/storm.mp3',
+  '/audio/swamp.mp3',
+  '/audio/train.mp3',
+  '/audio/vinyl.mp3',
 ];
 
-export const DEFAULT_WALLPAPERS: Wallpaper[] = [
+export const DEFAULT_WALLPAPERS = [
   {
-    id: 'default-1',
-    name: 'Default 1',
-    type: 'image',
     path: '/wallpapers/images/default-1.jpg',
     category: 'abstract',
   },

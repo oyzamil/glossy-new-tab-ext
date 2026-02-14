@@ -13,7 +13,10 @@
     @apply relative font-['Poppins']!;
   }
   * {
-    @apply scrollbar:size-1 scrollbar-track:bg-app-900 scrollbar-thumb:bg-black/60 selection:bg-app-100 selection:text-app-500 dark:selection:text-app-900 dark:selection:bg-white/50;
+    @apply scrollbar:size-1 scrollbar-track:bg-black/60 scrollbar-thumb:bg-app-900 selection:bg-app-100 selection:text-app-500 dark:selection:text-app-900 scrollbar-thumb:rounded-full dark:selection:bg-white/50;
+  }
+  .scrollbar-inverse * {
+    @apply scrollbar-track:bg-gray-100 scrollbar-thumb:bg-gray-400 dark:scrollbar-track:bg-black/60 dark:scrollbar-thumb:bg-app-900;
   }
   mark {
     @apply bg-app-500 mx-0.5 rounded px-1 whitespace-nowrap text-white;

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Settings } from '@/app.config';
 import { useAntd } from '@/providers/ThemeProvider';
 import { Icon } from '@iconify/react';
@@ -6,6 +7,7 @@ import {
   Card,
   Empty,
   Form,
+  Input,
   Popconfirm,
   Segmented,
   Slider,
@@ -23,24 +25,32 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }) => {
   const { message } = useAntd();
+
+  // Wallpaper Store
   const {
     saveWallpaper,
-    loadWallpaperUrl,
     activeWallpaperId,
     setActiveWallpaperId,
     listWallpapers,
     deleteWallpapers,
-    cleanupExpiredWallpapers,
     getWallpaperBlob,
   } = useWallpaperStore();
 
+  // Audio Store
+  const { saveAudio, activeAudioId, setActiveAudioId, listAudio, deleteAudio, getAudioBlob } =
+    useAudioStore();
+
   const [backgrounds, setBackgrounds] = useState<any[]>([]);
+  const [audioTracks, setAudioTracks] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [storageSize, setStorageSize] = useState<number>(0);
+  const [storageSize, setStorageSize] = useState({ wallpapers: 0, audio: 0 });
+  const [wallpaperSearch, setWallpaperSearch] = useState('');
+  const [audioSearch, setAudioSearch] = useState('');
+  const [activeWallpaperType, setActiveWallpaperType] = useState<'custom' | 'default' | null>(null);
+  const [, forceUpdate] = useState({}); // Force re-render trigger
   const { settings, saveSettings } = useSettings();
 
   const [form] = Form.useForm<Settings>();
-
   const debouncedSubmit = useRef(debounce(onSubmit, 500)).current;
 
   async function onSubmit(settings: Settings) {
@@ -61,22 +71,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
     }
   }
 
+  // Load data on mount
   useEffect(() => {
     loadBackgrounds();
-    // loadCurrentBackground();
-    updateStorageSize();
+    loadAudioTracks();
+
+    // Determine which wallpaper is active
+    const defaultId = localStorage.getItem('defaultWallpaperId');
+    if (defaultId) {
+      setActiveWallpaperType('default');
+    } else if (activeWallpaperId) {
+      setActiveWallpaperType('custom');
+    }
   }, []);
+
+  // Sync activeWallpaperType when activeWallpaperId changes
+  useEffect(() => {
+    const defaultId = localStorage.getItem('defaultWallpaperId');
+
+    if (defaultId && !activeWallpaperId) {
+      setActiveWallpaperType('default');
+    } else if (activeWallpaperId) {
+      setActiveWallpaperType('custom');
+    } else {
+      setActiveWallpaperType(null);
+    }
+  }, [activeWallpaperId]);
+
+  /* ---------------------------------------------------------------- */
+  /* WALLPAPER FUNCTIONS                                              */
+  /* ---------------------------------------------------------------- */
 
   const loadBackgrounds = async () => {
     try {
       const result = await listWallpapers();
-      // Load full wallpaper data with blobs
       const wallpapersWithData = await Promise.all(
         result.items.map(async (item) => {
           const blob = await getWallpaperBlob(item.id);
           if (!blob) return null;
 
-          // Determine type from blob
           const type = blob.type.startsWith('video/') ? 'video' : 'image';
 
           return {
@@ -89,70 +122,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
         })
       );
 
-      setBackgrounds(wallpapersWithData.filter(Boolean) as any[]);
+      const filtered = wallpapersWithData.filter(Boolean) as any[];
+      setBackgrounds(filtered);
+
+      // Calculate storage
+      const totalSize = filtered.reduce((acc, bg) => acc + bg.data.size, 0);
+      setStorageSize((prev) => ({ ...prev, wallpapers: totalSize }));
     } catch (error) {
       console.error('Failed to load backgrounds:', error);
     }
   };
 
-  const updateStorageSize = async () => {
-    try {
-      const result = await listWallpapers();
-      let totalSize = 0;
-
-      for (const item of result.items) {
-        const blob = await getWallpaperBlob(item.id);
-        if (blob) {
-          totalSize += blob.size;
-        }
-      }
-
-      setStorageSize(totalSize);
-    } catch (error) {
-      console.error('Failed to calculate storage size:', error);
-    }
-  };
-
-  const loadCurrentBackground = async () => {
-    if (activeWallpaperId) {
-      // Check if it's a default wallpaper
-      const defaultWallpaper = DEFAULT_WALLPAPERS.find((w) => w.id === activeWallpaperId);
-      if (defaultWallpaper) {
-        onBackgroundChange(defaultWallpaper.path, defaultWallpaper.type);
-        return;
-      }
-
-      // Otherwise, load from IndexedDB
-      const url = await loadWallpaperUrl(activeWallpaperId);
-      if (url) {
-        const blob = await getWallpaperBlob(activeWallpaperId);
-        const type = blob?.type.startsWith('video/') ? 'video' : 'image';
-        onBackgroundChange(url, type);
-      }
-    }
-  };
-
-  // Re-load background when activeWallpaperId changes
-  useEffect(() => {
-    loadCurrentBackground();
-  }, [activeWallpaperId]);
-
-  const handleUpload = async (file: File) => {
+  const handleWallpaperUpload = async (file: File) => {
     setUploading(true);
     try {
       const result = await saveWallpaper({ file, setAsActive: true });
-      message.success('Background uploaded successfully!');
-      await loadBackgrounds();
-      await updateStorageSize();
+      message.success('Wallpaper uploaded successfully!');
 
-      // Background is already set as active by saveWallpaper
-      const url = await loadWallpaperUrl(result.id);
-      if (url) {
+      await loadBackgrounds();
+
+      // Clear default wallpaper selection
+      localStorage.removeItem('defaultWallpaperId');
+      setActiveWallpaperType('custom');
+
+      // Apply the uploaded wallpaper
+      const blob = await getWallpaperBlob(result.id);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
         const type = file.type.startsWith('video/') ? 'video' : 'image';
         onBackgroundChange(url, type);
       }
     } catch (error: any) {
-      message.error(error.message || 'Failed to upload background');
+      message.error(error.message || 'Failed to upload wallpaper');
       console.error(error);
     } finally {
       setUploading(false);
@@ -161,30 +162,59 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
     return false;
   };
 
-  const handleSetBackground = async (id: string, isDefault: boolean = false) => {
-    if (isDefault) {
-      // Handle default wallpaper
-      const wallpaper = DEFAULT_WALLPAPERS.find((w) => w.id === id);
-      if (wallpaper) {
-        // Store default wallpaper ID in localStorage since it's not in IndexedDB
+  const handleSetWallpaper = async (id: string, isDefault = false) => {
+    try {
+      if (isDefault) {
+        // Set default wallpaper
+        const wallpaper = ALL_DEFAULT_WALLPAPERS.find((w) => w.id === id);
+        if (!wallpaper) return;
+
+        // Clear custom wallpaper active state
+        if (activeWallpaperId) {
+          await setActiveWallpaperId('');
+        }
+
+        // Set default as active
         localStorage.setItem('defaultWallpaperId', id);
+        setActiveWallpaperType('default');
+
+        // Force re-render to update UI
+        forceUpdate({});
+
+        // Apply the default wallpaper
         onBackgroundChange(wallpaper.path, wallpaper.type);
-        message.success('Background applied!');
-      }
-    } else {
-      // Handle user-uploaded background
-      await setActiveWallpaperId(id);
-      const url = await loadWallpaperUrl(id);
-      if (url) {
+
+        message.success('Wallpaper applied!');
+      } else {
+        // Set custom wallpaper
+
+        // Clear default wallpaper active state
+        localStorage.removeItem('defaultWallpaperId');
+
+        // Set custom as active
+        await setActiveWallpaperId(id);
+        setActiveWallpaperType('custom');
+
+        // Force re-render to update UI
+        forceUpdate({});
+
+        // Apply the custom wallpaper
         const blob = await getWallpaperBlob(id);
-        const type = blob?.type.startsWith('video/') ? 'video' : 'image';
-        onBackgroundChange(url, type);
-        message.success('Background applied!');
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const type = blob.type.startsWith('video/') ? 'video' : 'image';
+          onBackgroundChange(url, type);
+        }
+
+        message.success('Wallpaper applied!');
       }
+    } catch (error) {
+      message.error('Failed to apply wallpaper');
+      console.error(error);
     }
   };
 
-  const handleRemoveBackground = async (id: string) => {
+  const handleRemoveWallpaper = async (id: string) => {
     try {
       await deleteWallpapers(id);
 
@@ -193,69 +223,89 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
       }
 
       await loadBackgrounds();
-      await updateStorageSize();
-      message.success('Background removed!');
+      message.success('Wallpaper deleted');
     } catch (error) {
-      message.error('Failed to remove background');
+      message.error('Failed to delete wallpaper');
       console.error(error);
     }
   };
 
-  const handleClearBackground = async () => {
-    localStorage.removeItem('defaultWallpaperId');
-    onBackgroundChange(null, 'image');
-    message.success('Background cleared!');
-  };
+  /* ---------------------------------------------------------------- */
+  /* AUDIO FUNCTIONS                                                  */
+  /* ---------------------------------------------------------------- */
 
-  const handleCleanup = async () => {
+  const loadAudioTracks = async () => {
     try {
-      await cleanupExpiredWallpapers();
-      await loadBackgrounds();
-      await updateStorageSize();
-      message.success('Old backgrounds cleaned up!');
+      const result = await listAudio();
+      const tracksWithData = await Promise.all(
+        result.items.map(async (item) => {
+          const blob = await getAudioBlob(item.id);
+          if (!blob) return null;
+
+          return {
+            id: item.id,
+            data: blob,
+            name: item.name || `Audio ${new Date(item.createdAt).toLocaleDateString()}`,
+            createdAt: item.createdAt,
+          };
+        })
+      );
+
+      const filtered = tracksWithData.filter(Boolean) as any[];
+      setAudioTracks(filtered);
+
+      // Calculate storage
+      const totalSize = filtered.reduce((acc, track) => acc + track.data.size, 0);
+      setStorageSize((prev) => ({ ...prev, audio: totalSize }));
     } catch (error) {
-      message.error('Failed to cleanup backgrounds');
+      console.error('Failed to load audio:', error);
+    }
+  };
+
+  const handleAudioUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      await saveAudio({ file, setAsActive: true });
+      message.success('Audio uploaded successfully!');
+      await loadAudioTracks();
+
+      // Notify audio player of new upload
+      window.dispatchEvent(new Event('audio-uploaded'));
+
+      // ✅ Wait for AudioPlayer to send updated tracks to offscreen
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Now play the newly uploaded track (custom tracks appear first)
+      await audioMessaging.sendMessage('setTrack', {
+        index: 0,
+        autoPlay: true,
+      });
+    } catch (error: any) {
+      message.error(error.message || 'Failed to upload audio');
+    } finally {
+      setUploading(false);
+    }
+
+    return false;
+  };
+
+  const handleRemoveAudio = async (id: string) => {
+    try {
+      await deleteAudio(id);
+      await loadAudioTracks();
+      message.success('Audio deleted');
+
+      // Notify audio player of deletion
+      window.dispatchEvent(new Event('audio-uploaded'));
+    } catch (error) {
+      message.error('Failed to delete audio');
       console.error(error);
     }
   };
 
-  const handleCaptureFrame = () => {
-    if (videoRef?.current) {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            // Convert blob to File for saveWallpaper
-            const file = new File([blob], `captured-frame-${Date.now()}.png`, {
-              type: 'image/png',
-            });
-
-            try {
-              const result = await saveWallpaper({ file, setAsActive: true });
-              const url = await loadWallpaperUrl(result.id);
-              if (url) {
-                onBackgroundChange(url, 'image');
-                message.success('Frame captured as image!');
-                await loadBackgrounds();
-                await updateStorageSize();
-              }
-            } catch (error) {
-              message.error('Failed to capture frame');
-              console.error(error);
-            }
-          }
-        }, 'image/png');
-      }
-    }
-  };
-
-  const currentBackground = backgrounds.find((b) => b.id === activeWallpaperId);
-  const isVideoBackground = currentBackground?.type === 'video';
+  /* ---------------------------------------------------------------- */
+  /* HELPER FUNCTIONS                                                 */
+  /* ---------------------------------------------------------------- */
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -265,9 +315,66 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const getBackgroundURL = (blob: Blob, id: string) => {
+  const getBackgroundURL = (blob: Blob) => {
     return URL.createObjectURL(blob);
   };
+
+  /* ---------------------------------------------------------------- */
+  /* COMBINED DATA WITH SEARCH AND SORTING                            */
+  /* ---------------------------------------------------------------- */
+
+  const allWallpapers = [
+    ...backgrounds.map((bg) => ({
+      ...bg,
+      isCustom: true,
+      isActive: activeWallpaperType === 'custom' && activeWallpaperId === bg.id,
+    })),
+    ...ALL_DEFAULT_WALLPAPERS.map((wp) => ({
+      ...wp,
+      isCustom: false,
+      isActive:
+        activeWallpaperType === 'default' && localStorage.getItem('defaultWallpaperId') === wp.id,
+    })),
+  ];
+
+  const allAudio = [
+    ...audioTracks.map((track) => ({
+      ...track,
+      isCustom: true,
+      isActive: activeAudioId === track.id,
+    })),
+    ...ALL_DEFAULT_AUDIO.map((audio) => ({
+      ...audio,
+      isCustom: false,
+      isActive: localStorage.getItem('defaultAudioId') === audio.id,
+    })),
+  ];
+
+  // Filter and sort wallpapers
+  const filteredWallpapers = allWallpapers
+    .filter((wp) => wp.name.toLowerCase().includes(wallpaperSearch.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Filter and sort audio
+  const filteredAudio = allAudio
+    .filter((audio) => audio.name.toLowerCase().includes(audioSearch.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const currentBackground = backgrounds.find((b) => b.id === activeWallpaperId);
+  const isVideoBackground = currentBackground?.type === 'video';
+
+  /* ---------------------------------------------------------------- */
+  /* RENDER                                                           */
+  /* ---------------------------------------------------------------- */
+
+  function truncateMiddle(text: string, maxLength = 24) {
+    if (text.length <= maxLength) return text;
+
+    const start = text.slice(0, Math.ceil(maxLength / 2) - 1);
+    const end = text.slice(-Math.floor(maxLength / 2) + 1);
+
+    return `${start}…${end}`;
+  }
 
   return (
     <div className="space-y-4">
@@ -293,6 +400,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
             ]}
           />
         </Form.Item>
+
         {/* Widget Toggles */}
         <Card className="w-full" title="Widgets" size="small">
           <Form.Item label="Clock" name="clockWidget">
@@ -311,6 +419,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
               }}
             />
           </Form.Item>
+
           <Form.Item label="Quotes" name="quotesWidget">
             <Switch
               checked={settings.quotesWidget}
@@ -319,6 +428,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
               }}
             />
           </Form.Item>
+
           <Form.Item label="Multi Widget" name="multiWidget">
             <Switch
               checked={settings.multiWidget}
@@ -336,6 +446,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
               onChange={(value) => form.setFieldValue('blurAmount', value)}
             />
           </Form.Item>
+
           <Form.Item label="Glass Effect" name="glassMorphism">
             <Switch
               checked={settings.glassMorphism}
@@ -343,12 +454,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
             />
           </Form.Item>
 
-          {/* <Form.Item label="Show Time in Standby" name="showTimeInStandby">
-            <Switch
-              checked={settings.showTimeInStandby}
-              onChange={(checked) => form.setFieldValue('showTimeInStandby', checked)}
-            />
-          </Form.Item> */}
           <Form.Item label="Hide Controls on Inactivity" name="hideControlsOnInactivity">
             <Switch
               checked={settings.hideControlsOnInactivity}
@@ -356,6 +461,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
             />
           </Form.Item>
         </Card>
+
         {isVideoBackground && (
           <Card className="w-full" title="Wallpaper Controls" size="small">
             <Form.Item label="Video Playback" name="videoPlayback">
@@ -380,100 +486,233 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
       </Form>
 
       <Tabs
-        styles={{
-          header: {
-            marginBottom: '5px',
-          },
-        }}
-        defaultActiveKey="custom"
+        defaultActiveKey="wallpapers"
         items={[
           {
-            key: 'custom',
-            label: 'My Wallpapers',
+            key: 'wallpapers',
+            label: (
+              <span className="flex items-center gap-2">
+                <Icon icon="material-symbols:wallpaper" />
+                Wallpapers
+              </span>
+            ),
             children: (
               <div className="space-y-3">
+                {/* Upload Card */}
                 <Card className="glass-card" title="Upload Wallpaper" size="small">
                   <Upload.Dragger
-                    beforeUpload={handleUpload}
+                    beforeUpload={handleWallpaperUpload}
                     showUploadList={false}
                     accept="image/*,video/*"
                     disabled={uploading}
                   >
-                    <p className="ant-upload-drag-icon">
-                      <Icon className="text-4xl" icon="material-symbols:cloud-upload" />
-                    </p>
-                    <p className="ant-upload-text">Click or drag file to upload</p>
-                    <p className="ant-upload-hint text-white/60">
-                      Images: 10MB max | Videos: 100MB max
-                    </p>
+                    <div className="flex-col-center">
+                      <p className="ant-upload-drag-icon">
+                        <Icon className="text-4xl" icon="material-symbols:cloud-upload" />
+                      </p>
+                      <p className="ant-upload-text text-xs">Click or drag file to upload</p>
+                      <p className="ant-upload-hint text-xs">
+                        Images: 10MB max | Videos: 100MB max
+                      </p>
+                    </div>
                   </Upload.Dragger>
                 </Card>
 
+                {/* Search Input */}
+                <Input
+                  placeholder="Search wallpapers..."
+                  prefix={<Icon icon="material-symbols:search" />}
+                  value={wallpaperSearch}
+                  onChange={(e) => setWallpaperSearch(e.target.value)}
+                  allowClear
+                />
+
                 {/* Storage Info */}
                 <div className="flex items-center justify-between text-sm opacity-70">
-                  <span>Storage used: {formatSize(storageSize)}</span>
-                  {backgrounds.length > 5 && (
-                    <Button type="link" size="small" onClick={handleCleanup}>
-                      Cleanup Old
-                    </Button>
-                  )}
+                  <span>Custom: {formatSize(storageSize.wallpapers)}</span>
+                  <span>{filteredWallpapers.length} wallpapers</span>
                 </div>
 
-                {/* Background List */}
+                {/* Combined List */}
                 <CustomList
                   className="max-h-100 overflow-y-auto pr-1"
-                  dataSource={backgrounds}
-                  empty={<Empty description="No custom backgrounds" />}
-                  renderItem={(bg) => {
-                    const isActive = activeWallpaperId === bg.id;
-
-                    return (
-                      <div
-                        className={`group flex items-center justify-between rounded-xl px-3 py-2 transition-all duration-200 ${isActive ? 'bg-gray-400/10' : 'hover:bg-white/5'} `}
-                      >
-                        {/* LEFT SIDE */}
-                        <div className="flex items-center gap-3">
-                          {/* Thumbnail */}
-                          {bg.type === 'image' ? (
+                  dataSource={filteredWallpapers}
+                  empty={<Empty description="No wallpapers found" />}
+                  renderItem={(item: any) => (
+                    <div
+                      className={`group flex items-center justify-between rounded-xl px-3 py-2 transition-all duration-200 ${
+                        item.isActive ? 'bg-gray-400/10' : 'hover:bg-white/5'
+                      }`}
+                    >
+                      {/* Left Side */}
+                      <div className="flex items-center gap-3">
+                        {/* Thumbnail */}
+                        {item.isCustom ? (
+                          item.type === 'image' ? (
                             <img
                               className="h-12 w-12 rounded-lg object-cover"
-                              src={getBackgroundURL(bg.data, bg.id)}
-                              alt={bg.name}
+                              src={getBackgroundURL(item.data)}
+                              alt={item.name}
                             />
                           ) : (
                             <div className="glass flex h-12 w-12 items-center justify-center rounded-lg">
                               <Icon className="text-2xl" icon="material-symbols:videocam" />
                             </div>
-                          )}
-
-                          {/* Text */}
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">{bg.name}</span>
-
-                            <span className="text-xs capitalize opacity-70">
-                              {bg.type === 'image' ? 'Image' : 'Video'} • {formatSize(bg.data.size)}
-                            </span>
+                          )
+                        ) : (
+                          <div className="glass flex h-12 w-12 items-center justify-center rounded-lg">
+                            <Icon
+                              className="text-2xl"
+                              icon={
+                                item.type === 'image'
+                                  ? 'material-symbols:image'
+                                  : 'material-symbols:videocam'
+                              }
+                            />
                           </div>
+                        )}
+
+                        {/* Text */}
+                        <div className="flex flex-col" title={item.name}>
+                          <span className="text-sm font-medium">{truncateMiddle(item.name)}</span>
+                          <span className="text-xs capitalize opacity-70">
+                            {item.isCustom ? (
+                              <>
+                                Custom • {item.type} • {formatSize(item.data?.size || 0)}
+                              </>
+                            ) : (
+                              <>
+                                Default • {item.category || 'Preset'} • {item.type}
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right Side Actions */}
+                      <div className="flex items-center gap-2 opacity-80 transition-opacity group-hover:opacity-100">
+                        {/* Apply Button */}
+                        <Button
+                          type={item.isActive ? 'default' : 'link'}
+                          size="small"
+                          disabled={item.isActive}
+                          onClick={() => handleSetWallpaper(item.id, !item.isCustom)}
+                          icon={<Icon icon="material-symbols:check-circle" />}
+                        >
+                          {item.isActive ? 'Active' : 'Apply'}
+                        </Button>
+
+                        {/* Delete (only for custom) */}
+                        {item.isCustom && (
+                          <Popconfirm
+                            title="Delete wallpaper"
+                            description="Are you sure?"
+                            onConfirm={() => handleRemoveWallpaper(item.id)}
+                            okText="Yes"
+                            cancelText="No"
+                          >
+                            <Button
+                              type="link"
+                              size="small"
+                              danger
+                              icon={<Icon icon="material-symbols:delete" />}
+                            />
+                          </Popconfirm>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            ),
+          },
+          {
+            key: 'audio',
+            label: (
+              <span className="flex items-center gap-2">
+                <Icon icon="material-symbols:audio-file" />
+                Audio
+              </span>
+            ),
+            children: (
+              <div className="space-y-3">
+                {/* Upload Card */}
+                <Card title="Upload Audio" size="small">
+                  <Upload.Dragger
+                    beforeUpload={handleAudioUpload}
+                    showUploadList={false}
+                    accept="audio/*"
+                    disabled={uploading}
+                  >
+                    <div className="flex-col-center">
+                      <p className="ant-upload-drag-icon">
+                        <Icon className="text-4xl" icon="material-symbols:cloud-upload" />
+                      </p>
+                      <p className="ant-upload-text text-xs">Click or drag file to upload</p>
+                      <p className="ant-upload-hint text-xs">Audio files: 50MB max</p>
+                    </div>
+                  </Upload.Dragger>
+                </Card>
+
+                {/* Search Input */}
+                <Input
+                  placeholder="Search audio..."
+                  prefix={<Icon icon="material-symbols:search" />}
+                  value={audioSearch}
+                  onChange={(e) => setAudioSearch(e.target.value)}
+                  allowClear
+                />
+
+                {/* Storage Info */}
+                <div className="flex items-center justify-between text-sm opacity-70">
+                  <span>Custom: {formatSize(storageSize.audio)}</span>
+                  <span>{filteredAudio.length} tracks</span>
+                </div>
+
+                {/* Combined List */}
+                <CustomList
+                  className="max-h-100 overflow-y-auto pr-1"
+                  dataSource={filteredAudio}
+                  empty={<Empty description="No audio found" />}
+                  renderItem={(item: any) => (
+                    <div
+                      className={`group flex items-center justify-between rounded-xl px-3 py-2 transition-all duration-200 ${
+                        item.isActive ? 'bg-gray-400/10' : 'hover:bg-white/5'
+                      }`}
+                    >
+                      {/* Left Side */}
+                      <div className="flex items-center gap-3">
+                        <div className="glass flex h-12 w-12 items-center justify-center rounded-lg">
+                          <Icon
+                            className="text-2xl"
+                            icon={
+                              item.isCustom
+                                ? 'material-symbols:audio-file'
+                                : 'material-symbols:library-music'
+                            }
+                          />
                         </div>
 
-                        {/* RIGHT SIDE ACTIONS */}
-                        <div className="flex items-center gap-2 opacity-80 transition-opacity group-hover:opacity-100">
-                          {/* Apply Button */}
-                          <Button
-                            type={isActive ? 'default' : 'link'}
-                            size="small"
-                            disabled={isActive}
-                            onClick={() => handleSetBackground(bg.id)}
-                            icon={<Icon icon="material-symbols:check-circle" />}
-                          >
-                            {isActive ? 'Active' : 'Apply'}
-                          </Button>
+                        {/* Text */}
+                        <div className="flex flex-col" title={item.name}>
+                          <span className="text-sm font-medium">{truncateMiddle(item.name)}</span>
+                          <span className="text-xs opacity-70">
+                            {item.isCustom ? (
+                              <>Custom • {formatSize(item.data?.size || 0)}</>
+                            ) : (
+                              <>Default</>
+                            )}
+                          </span>
+                        </div>
+                      </div>
 
-                          {/* Delete */}
+                      {/* Right Side - Only Delete button for custom audio */}
+                      {item.isCustom && (
+                        <div className="flex items-center gap-2 opacity-80 transition-opacity group-hover:opacity-100">
                           <Popconfirm
-                            title="Delete background"
+                            title="Delete audio"
                             description="Are you sure?"
-                            onConfirm={() => handleRemoveBackground(bg.id)}
+                            onConfirm={() => handleRemoveAudio(item.id)}
                             okText="Yes"
                             cancelText="No"
                           >
@@ -485,76 +724,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onBackgroundChange, videoRef }
                             />
                           </Popconfirm>
                         </div>
-                      </div>
-                    );
-                  }}
+                      )}
+                    </div>
+                  )}
                 />
               </div>
             ),
           },
-          {
-            key: 'default',
-            label: 'Default Wallpapers',
-            children: (
-              <CustomList
-                dataSource={DEFAULT_WALLPAPERS}
-                empty={<Empty description="No default wallpapers available." />}
-                renderItem={(wallpaper) => {
-                  const isActive = localStorage.getItem('defaultWallpaperId') === wallpaper.id;
-
-                  return (
-                    <div
-                      className={`flex cursor-pointer items-center justify-between rounded-lg px-2 py-2 transition-colors ${isActive ? 'bg-gray-400/10' : 'hover:bg-white/5'} `}
-                      onClick={() => handleSetBackground(wallpaper.id, true)}
-                    >
-                      {/* Left Side */}
-                      <div className="flex items-center gap-3">
-                        <div className="glass flex h-12 w-12 items-center justify-center rounded">
-                          <Icon
-                            className="text-2xl"
-                            icon={
-                              wallpaper.type === 'image'
-                                ? 'material-symbols:image'
-                                : 'material-symbols:videocam'
-                            }
-                          />
-                        </div>
-
-                        <div className="flex flex-col">
-                          <span className="text-sm">{wallpaper.name}</span>
-                          <span className="text-xs capitalize">
-                            {wallpaper.category || 'Default'} • {wallpaper.type}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Right Side */}
-                      {isActive && (
-                        <Icon
-                          className="text-app-500 text-xl"
-                          icon="material-symbols:check-circle"
-                        />
-                      )}
-                    </div>
-                  );
-                }}
-              />
-            ),
-          },
         ]}
       />
-
-      {/* {(activeWallpaperId || localStorage.getItem('defaultWallpaperId')) && (
-        <Button
-          type="primary"
-          danger
-          block
-          onClick={handleClearBackground}
-          icon={<Icon icon="material-symbols:clear" />}
-        >
-          Clear Current Background
-        </Button>
-      )} */}
     </div>
   );
 };

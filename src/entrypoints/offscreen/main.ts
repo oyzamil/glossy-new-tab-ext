@@ -9,6 +9,20 @@ let currentState: AudioState = {
   duration: 0,
 };
 
+// Track list (will be updated from UI)
+let tracks: Track[] = [];
+
+// Load default tracks from manifest on initialization
+async function loadDefaultTracks() {
+  try {
+    // Import DEFAULT_AUDIO if available
+    // For now, we'll wait for updateTracks from UI
+    console.log('Waiting for tracks from UI...');
+  } catch (error) {
+    console.error('Failed to load default tracks:', error);
+  }
+}
+
 // Detect if running in inactive tab or offscreen document
 const isInactiveTab =
   window.location !== window.parent.location || document.visibilityState !== undefined;
@@ -62,13 +76,13 @@ function broadcastState(): void {
 }
 
 function handleSkip(direction: 'next' | 'prev'): void {
+  if (tracks.length === 0) return;
+
   if (direction === 'next') {
-    currentState.currentAudioIndex = (currentState.currentAudioIndex + 1) % DEFAULT_TRACKS.length;
+    currentState.currentAudioIndex = (currentState.currentAudioIndex + 1) % tracks.length;
   } else {
     currentState.currentAudioIndex =
-      currentState.currentAudioIndex === 0
-        ? DEFAULT_TRACKS.length - 1
-        : currentState.currentAudioIndex - 1;
+      currentState.currentAudioIndex === 0 ? tracks.length - 1 : currentState.currentAudioIndex - 1;
   }
   loadTrack();
   if (currentState.audioPlaying && audioElement) {
@@ -77,13 +91,21 @@ function handleSkip(direction: 'next' | 'prev'): void {
 }
 
 function loadTrack(): void {
-  const track = DEFAULT_TRACKS[currentState.currentAudioIndex];
+  if (tracks.length === 0) return;
+
+  const track = tracks[currentState.currentAudioIndex];
   if (audioElement && track) {
-    audioElement.src = browser.runtime.getURL(track.path as any);
+    // Handle both blob URLs (custom tracks) and regular URLs (default tracks)
+    if (track.path.startsWith('blob:')) {
+      audioElement.src = track.path;
+    } else {
+      audioElement.src = browser.runtime.getURL(track.path as any);
+    }
     audioElement.load();
   }
 }
 
+// Message handlers
 audioMessaging.onMessage('play', async () => {
   initAudio();
   if (audioElement) {
@@ -147,12 +169,26 @@ audioMessaging.onMessage('seek', async ({ data: time }) => {
 
 audioMessaging.onMessage('setTrack', async ({ data }) => {
   initAudio();
+
+  // Validate track index
+  if (tracks.length === 0) {
+    console.warn('No tracks available yet');
+    return { ...currentState };
+  }
+
+  if (data.index < 0 || data.index >= tracks.length) {
+    console.warn('Invalid track index:', data.index);
+    return { ...currentState };
+  }
+
   currentState.currentAudioIndex = data.index;
   loadTrack();
+
   if (data.autoPlay && audioElement) {
     currentState.audioPlaying = true;
     await audioElement.play().catch((e) => console.error('Play failed:', e));
   }
+
   return { ...currentState };
 });
 
@@ -164,6 +200,25 @@ audioMessaging.onMessage('skip', async ({ data: direction }) => {
 
 audioMessaging.onMessage('getState', async () => {
   initAudio();
+  return { ...currentState };
+});
+
+// NEW: Update tracks handler
+audioMessaging.onMessage('updateTracks', async ({ data: newTracks }) => {
+  tracks = newTracks;
+  console.log(
+    `Tracks updated: ${tracks.length} total (${tracks.filter((t) => t.isCustom).length} custom, ${tracks.filter((t) => !t.isCustom).length} default)`
+  );
+
+  // If currently playing a track that no longer exists, stop
+  if (currentState.currentAudioIndex >= tracks.length) {
+    currentState.currentAudioIndex = 0;
+    if (audioElement) {
+      audioElement.pause();
+      currentState.audioPlaying = false;
+    }
+  }
+
   return { ...currentState };
 });
 

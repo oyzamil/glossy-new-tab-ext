@@ -8,7 +8,7 @@ export const config = {
     extensionPage: 'https://muzammil.work/',
   },
   SETTINGS: {
-    theme: 'dark' as 'light' | 'dark' | 'system',
+    theme: 'system' as 'light' | 'dark' | 'system',
     licenseModalVisible: false,
     licenseInfo: {
       email: null as string | null,
